@@ -13,6 +13,11 @@ namespace Larva.MessageProcess.Interception
         object[] Arguments { get; }
 
         /// <summary>
+        /// 参数类型
+        /// </summary>
+        Type[] ArgumentTypes { get; }
+
+        /// <summary>
         /// 调用目标对象
         /// </summary>
         object InvocationTarget { get; }

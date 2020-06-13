@@ -1,5 +1,6 @@
 ﻿using Larva.MessageProcess.Interception;
 using Larva.MessageProcess.Messaging;
+using System;
 using System.Threading.Tasks;
 
 namespace Larva.MessageProcess.Handlers
@@ -17,16 +18,19 @@ namespace Larva.MessageProcess.Handlers
 
         public Task HandleAsync(IMessage message, IMessageContext ctx)
         {
-            var handler = _messageHandler as IMessageHandler<TMessage>;
             if (_interceptors != null)
             {
-                var invocation = new MessageHandlerInvocation(_interceptors, new object[] { message, ctx }, handler, nameof(handler.HandleAsync), (m, c) => handler.HandleAsync((TMessage)m, c), this, nameof(MessageHandlerProxy<TMessage>.HandleAsync), HandleAsync);
+                var arguments = new object[] { message, ctx };
+                var argumentTypes = new Type[] { typeof(TMessage), typeof(IMessageContext) };
+                var invocation = new MessageHandlerInvocation(_interceptors, arguments, argumentTypes,
+                    _messageHandler, nameof(_messageHandler.HandleAsync), (m, c) => _messageHandler.HandleAsync((TMessage)m, c),
+                    this, nameof(_messageHandler.HandleAsync), HandleAsync);
                 invocation.Proceed();
                 return (Task)invocation.ReturnValue;
             }
             else
             {
-                return handler.HandleAsync(message as TMessage, ctx);
+                return _messageHandler.HandleAsync(message as TMessage, ctx);
             }
         }
 
