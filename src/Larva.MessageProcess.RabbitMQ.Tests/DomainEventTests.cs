@@ -13,7 +13,7 @@ namespace Larva.MessageProcess.RabbitMQ.Tests
         [Fact]
         public void Test1()
         {
-            //Larva.MessageProcess.LogManager.SetLogProvider(new Log4NetLogProvider());
+            //Larva.MessageProcess.LoggerManager.SetLoggerProvider(new Log4NetLoggerProvider());
             var consumer1 = new EventConsumer();
             consumer1.Initialize(new ConsumerSettings
             {

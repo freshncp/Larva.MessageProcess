@@ -6,25 +6,25 @@ namespace Larva.MessageProcess
     /// <summary>
     /// 控制台日志提供者
     /// </summary>
-    public class ConsoleLogProvider : ILogProvider
+    public class ConsoleLoggerProvider : ILoggerProvider
     {
         /// <summary>
         /// 获取日志
         /// </summary>
         /// <param name="source"></param>
         /// <returns></returns>
-        public ILog GetLogger(Type source)
+        public ILogger GetLogger(Type source)
         {
-            return new ConsoleLog(source.FullName);
+            return new ConsoleLogger(source.FullName);
         }
     }
 
-    internal class ConsoleLog : ILog
+    internal class ConsoleLogger : ILogger
     {
         private object _locker = new object();
         private string _source;
 
-        public ConsoleLog(string source)
+        public ConsoleLogger(string source)
         {
             _source = source;
         }

@@ -11,8 +11,7 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <PackageId>Larva.MessageProcess</PackageId>
     <Title>Larva.MessageProcess</Title>
-    <Version>1.0.0</Version>
-    <AssemblyVersion>1.0.0</AssemblyVersion>
+    <Version>1.0.1</Version>
     <PackageTags>parallel serial message mq message-process concurrent</PackageTags>
     <Description>消息处理框架。不同业务键并行处理，相同业务键串行处理。</Description>
     <PackageIcon>_content\package.png</PackageIcon>

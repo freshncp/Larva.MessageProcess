@@ -16,7 +16,7 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
         private DefaultMessageProcessor _commandProcessor;
         private CommandHandlerProvider _commandHandlerProvider;
         private Consumer _consumer;
-        private ILog _logger = LogManager.GetLogger(typeof(CommandConsumer));
+        private ILogger _logger = LoggerManager.GetLogger(typeof(CommandConsumer));
 
         public void Initialize(ConsumerSettings consumerSettings, string topic, int queueCount, IInterceptor[] interceptors, params Assembly[] assemblies)
         {
@@ -69,10 +69,10 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
         internal class CommandExecutingContext : IMessageExecutingContext
         {
             private string _result;
-            private ILog _logger;
+            private ILogger _logger;
             private IMessageTransportationContext _transportationContext;
 
-            public CommandExecutingContext(ILog logger, IMessageTransportationContext transportationContext)
+            public CommandExecutingContext(ILogger logger, IMessageTransportationContext transportationContext)
             {
                 _logger = logger;
                 _transportationContext = transportationContext;

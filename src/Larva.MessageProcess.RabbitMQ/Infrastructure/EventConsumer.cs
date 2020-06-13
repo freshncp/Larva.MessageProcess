@@ -18,7 +18,7 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
         private DefaultMessageProcessor _eventStreamProcessor;
         private Consumer _consumer;
         private string _subscriber;
-        private ILog _logger = LogManager.GetLogger(typeof(EventConsumer));
+        private ILogger _logger = LoggerManager.GetLogger(typeof(EventConsumer));
 
         public void Initialize(ConsumerSettings consumerSettings, string topic, int queueCount, IInterceptor[] interceptors, params Assembly[] assemblies)
         {
@@ -79,10 +79,10 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
         internal class EventExecutingContext : IMessageExecutingContext
         {
             private string _result;
-            private ILog _logger;
+            private ILogger _logger;
             private IMessageTransportationContext _transportationContext;
 
-            public EventExecutingContext(ILog logger, IMessageTransportationContext transportationContext)
+            public EventExecutingContext(ILogger logger, IMessageTransportationContext transportationContext)
             {
                 _logger = logger;
                 _transportationContext = transportationContext;

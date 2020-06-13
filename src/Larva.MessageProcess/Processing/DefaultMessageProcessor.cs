@@ -11,7 +11,7 @@ namespace Larva.MessageProcess.Processing
     /// </summary>
     public class DefaultMessageProcessor : IMessageProcessor
     {
-        private readonly ILog _logger;
+        private readonly ILogger _logger;
         private readonly ConcurrentDictionary<string, IProcessingMessageMailbox> _mailboxDict;
         private volatile int _initialized;
         private volatile int _isRunning;
@@ -26,7 +26,7 @@ namespace Larva.MessageProcess.Processing
         public DefaultMessageProcessor()
         {
             _mailboxDict = new ConcurrentDictionary<string, IProcessingMessageMailbox>();
-            _logger = LogManager.GetLogger(GetType());
+            _logger = LoggerManager.GetLogger(GetType());
             _cleanInactiveMailboxTimer = new Timer(CleanInactiveMailbox);
         }
 

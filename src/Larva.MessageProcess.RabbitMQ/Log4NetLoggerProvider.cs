@@ -2,19 +2,19 @@ using System;
 
 namespace Larva.MessageProcess.RabbitMQ
 {
-    public class Log4NetLogProvider : Larva.MessageProcess.ILogProvider
+    public class Log4NetLoggerProvider : Larva.MessageProcess.ILoggerProvider
     {
-        public ILog GetLogger(Type source)
+        public ILogger GetLogger(Type source)
         {
-            return new Log4NetLog(source);
+            return new Log4NetLogger(source);
         }
     }
 
-    internal class Log4NetLog : Larva.MessageProcess.ILog
+    internal class Log4NetLogger : Larva.MessageProcess.ILogger
     {
         private log4net.ILog _log;
 
-        public Log4NetLog(Type source)
+        public Log4NetLogger(Type source)
         {
             _log = log4net.LogManager.GetLogger(source);
         }

@@ -5,18 +5,18 @@ namespace Larva.MessageProcess
     /// <summary>
     /// 日志管理器
     /// </summary>
-    public sealed class LogManager
+    public sealed class LoggerManager
     {
-        private static ILogProvider _logProvider;
-        private static ILogProvider _defaultLogProvider = new ConsoleLogProvider();
+        private static ILoggerProvider _loggerProvider;
+        private static ILoggerProvider _defaultLoggerProvider = new ConsoleLoggerProvider();
 
         /// <summary>
         /// 设置日志提供者
         /// </summary>
-        /// <param name="logProvider"></param>
-        public static void SetLogProvider(ILogProvider logProvider)
+        /// <param name="loggerProvider"></param>
+        public static void SetLoggerProvider(ILoggerProvider loggerProvider)
         {
-            _logProvider = logProvider;
+            _loggerProvider = loggerProvider;
         }
 
         /// <summary>
@@ -24,33 +24,33 @@ namespace Larva.MessageProcess
         /// </summary>
         /// <param name="source"></param>
         /// <returns></returns>
-        public static ILog GetLogger(Type source)
+        public static ILogger GetLogger(Type source)
         {
-            if (_logProvider == null)
+            if (_loggerProvider == null)
             {
-                return _defaultLogProvider.GetLogger(source);
+                return _defaultLoggerProvider.GetLogger(source);
             }
-            return _logProvider.GetLogger(source);
+            return _loggerProvider.GetLogger(source);
         }
     }
 
     /// <summary>
     /// 日志提供者 接口
     /// </summary>
-    public interface ILogProvider
+    public interface ILoggerProvider
     {
         /// <summary>
         /// 获取日志
         /// </summary>
         /// <param name="source"></param>
         /// <returns></returns>
-        ILog GetLogger(Type source);
+        ILogger GetLogger(Type source);
     }
 
     /// <summary>
     /// 日志
     /// </summary>
-    public interface ILog
+    public interface ILogger
     {
         /// <summary>
         /// 跟踪

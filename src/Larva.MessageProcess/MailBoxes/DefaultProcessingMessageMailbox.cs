@@ -16,7 +16,7 @@ namespace Larva.MessageProcess.MailBoxes
         private readonly ConcurrentDictionary<long, ProcessingMessage> _messageDict;
         private IProcessingMessageHandler _messageHandler;
         private int _batchSize;
-        private readonly ILog _logger;
+        private readonly ILogger _logger;
         private volatile int _initialized;
         private volatile int _isRemoved;
         private volatile int _isRunning;
@@ -35,7 +35,7 @@ namespace Larva.MessageProcess.MailBoxes
         {
             _messageDict = new ConcurrentDictionary<long, ProcessingMessage>();
             _nextSequence = 1;
-            _logger = LogManager.GetLogger(GetType());
+            _logger = LoggerManager.GetLogger(GetType());
             LastActiveTime = DateTime.Now;
             Locker = new SpinLock();
         }
