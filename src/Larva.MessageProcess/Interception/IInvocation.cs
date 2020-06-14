@@ -8,9 +8,9 @@ namespace Larva.MessageProcess.Interception
     public interface IInvocation
     {
         /// <summary>
-        /// 参数
+        /// 方法名
         /// </summary>
-        object[] Arguments { get; }
+        string MethodName { get; }
 
         /// <summary>
         /// 参数类型
@@ -18,14 +18,14 @@ namespace Larva.MessageProcess.Interception
         Type[] ArgumentTypes { get; }
 
         /// <summary>
+        /// 返回值类型
+        /// </summary>
+        Type ReturnValueType { get; }
+
+        /// <summary>
         /// 调用目标对象
         /// </summary>
         object InvocationTarget { get; }
-
-        /// <summary>
-        /// 调用目标的方法名
-        /// </summary>
-        string MethodNameInvocationTarget { get; }
 
         /// <summary>
         /// 代理对象
@@ -33,14 +33,9 @@ namespace Larva.MessageProcess.Interception
         object Proxy { get; }
 
         /// <summary>
-        /// 代理的方法名
+        /// 参数
         /// </summary>
-        string MethodName { get; }
-
-        /// <summary>
-        /// 返回值类型
-        /// </summary>
-        Type ReturnValueType { get; }
+        object[] Arguments { get; }
 
         /// <summary>
         /// 返回值

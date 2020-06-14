@@ -22,9 +22,9 @@ namespace Larva.MessageProcess.Handlers
             {
                 var arguments = new object[] { message, ctx };
                 var argumentTypes = new Type[] { typeof(TMessage), typeof(IMessageContext) };
-                var invocation = new MessageHandlerInvocation(_interceptors, arguments, argumentTypes,
-                    _messageHandler, nameof(_messageHandler.HandleAsync), (m, c) => _messageHandler.HandleAsync((TMessage)m, c),
-                    this, nameof(_messageHandler.HandleAsync), HandleAsync);
+                var invocation = new MessageHandlerInvocation(_interceptors, nameof(_messageHandler.HandleAsync), typeof(TMessage),
+                    _messageHandler, (m, c) => _messageHandler.HandleAsync((TMessage)m, c),
+                    this, arguments);
                 invocation.Proceed();
                 return (Task)invocation.ReturnValue;
             }

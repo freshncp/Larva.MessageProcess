@@ -14,32 +14,30 @@ namespace Larva.MessageProcess.Interception
         /// 调用 抽象类
         /// </summary>
         /// <param name="interceptors">拦截器</param>
-        /// <param name="arguments">参数</param>
-        /// <param name="argumentTypes">参数类型</param>
-        /// <param name="invocationTarget">调用目标对象</param>
-        /// <param name="methodNameInvocationTarget">调用目标的方法名</param>
-        /// <param name="proxy">代理对象</param>
         /// <param name="methodName">代理的方法名</param>
+        /// <param name="argumentTypes">参数类型</param>
         /// <param name="returnValueType">返回类型</param>
-        protected InvocationBase(IInterceptor[] interceptors, object[] arguments, Type[] argumentTypes, object invocationTarget, string methodNameInvocationTarget, object proxy, string methodName, Type returnValueType)
+        /// <param name="invocationTarget">调用目标对象</param>
+        /// <param name="proxy">代理对象</param>
+        /// <param name="arguments">参数</param>
+        protected InvocationBase(IInterceptor[] interceptors, string methodName, Type[] argumentTypes, Type returnValueType, object invocationTarget, object proxy, object[] arguments)
         {
             if (interceptors != null && interceptors.Length > 0)
             {
                 _interceptors = new Queue<IInterceptor>(interceptors);
             }
-            Arguments = arguments;
-            ArgumentTypes = argumentTypes;
-            InvocationTarget = invocationTarget;
-            MethodNameInvocationTarget = methodNameInvocationTarget;
-            Proxy = proxy;
             MethodName = methodName;
+            ArgumentTypes = argumentTypes;
             ReturnValueType = returnValueType;
+            InvocationTarget = invocationTarget;
+            Proxy = proxy;
+            Arguments = arguments;
         }
 
         /// <summary>
-        /// 参数
+        /// 方法名
         /// </summary>
-        public object[] Arguments { get; private set; }
+        public string MethodName { get; private set; }
 
         /// <summary>
         /// 参数类型
@@ -47,14 +45,14 @@ namespace Larva.MessageProcess.Interception
         public Type[] ArgumentTypes { get; private set; }
 
         /// <summary>
+        /// 返回值类型
+        /// </summary>
+        public Type ReturnValueType { get; private set; }
+
+        /// <summary>
         /// 调用目标对象
         /// </summary>
         public object InvocationTarget { get; private set; }
-
-        /// <summary>
-        /// 调用目标的方法名
-        /// </summary>
-        public string MethodNameInvocationTarget { get; private set; }
 
         /// <summary>
         /// 代理对象
@@ -62,14 +60,9 @@ namespace Larva.MessageProcess.Interception
         public object Proxy { get; private set; }
 
         /// <summary>
-        /// 代理的方法名
+        /// 参数
         /// </summary>
-        public string MethodName { get; private set; }
-
-        /// <summary>
-        /// 返回值类型
-        /// </summary>
-        public Type ReturnValueType { get; private set; }
+        public object[] Arguments { get; private set; }
 
         /// <summary>
         /// 返回值

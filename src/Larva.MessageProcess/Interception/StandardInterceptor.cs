@@ -126,8 +126,11 @@ namespace Larva.MessageProcess.Interception
         /// 调用时抛异常
         /// </summary>
         /// <param name="invocation">调用</param>
-        /// <param name="ex">异常</param>
-        protected abstract void ExceptionThrown(IInvocation invocation, Exception ex);
+        /// <param name="exception">异常</param>
+        protected virtual void ExceptionThrown(IInvocation invocation, Exception exception)
+        {
+
+        }
 
         /// <summary>
         /// 释放
