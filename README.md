@@ -113,6 +113,13 @@ public class CommandConsumer
 
 ## 发布历史
 
+### 1.0.3 （更新日期：2020/6/18）
+
+```plain
+1）修复StandardInterceptor，拦截异步方法时，Dispose的调用应仍在主线程里执行，确保类似AsyncLocal变量在主线程上被释放；
+2）优化StandardInterceptor，对PostProceed、ExceptionThrown、Dispose的调用，捕获异常抛出。
+```
+
 ### 1.0.2 （更新日期：2020/6/14）
 
 ```plain

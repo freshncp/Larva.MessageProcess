@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Larva.MessageProcess.Interception
@@ -24,20 +25,12 @@ namespace Larva.MessageProcess.Interception
                     isFailBeforePostProceed = false;
                     if (invocation.ReturnValue == null)
                     {
-                        try
-                        {
-                            PostProceed(invocation);
-                        }
-                        catch { }
+                        EatException(() => PostProceed(invocation));
                     }
                 }
                 catch (Exception ex)
                 {
-                    try
-                    {
-                        ExceptionThrown(invocation, ex);
-                    }
-                    catch { }
+                    EatException(() => ExceptionThrown(invocation, ex));
                     if (ex is AggregateException)
                     {
                         throw ex;
@@ -52,34 +45,28 @@ namespace Larva.MessageProcess.Interception
                     if (isFailBeforePostProceed
                         || invocation.ReturnValue == null)
                     {
-                        Dispose();
+                        EatException(() => Dispose());
                     }
                 }
                 if (!isFailBeforePostProceed
                     && invocation.ReturnValue != null)
                 {
+                    var waitPostProceedOrExceptionThrown = new ManualResetEvent(false);
                     ((Task)invocation.ReturnValue).ContinueWith((lastTask, state) =>
                     {
                         if (lastTask.Exception == null)
                         {
-                            try
-                            {
-                                PostProceed((IInvocation)state);
-                            }
-                            catch { }
+                            EatException(() => PostProceed(((InvocationAndEventWaitHandle)state).Invocation));
+                            ((InvocationAndEventWaitHandle)state).WaitHandle.Set();
                         }
                         else
                         {
-                            try
-                            {
-                                ExceptionThrown((IInvocation)state, lastTask.Exception.InnerExceptions[0]);
-                            }
-                            catch { }
+                            EatException(() => ExceptionThrown(((InvocationAndEventWaitHandle)state).Invocation, lastTask.Exception.InnerExceptions[0]));
+                            ((InvocationAndEventWaitHandle)state).WaitHandle.Set();
                         }
-                    }, invocation).ContinueWith((lastTask) =>
-                    {
-                        Dispose();
-                    });
+                    }, new InvocationAndEventWaitHandle(invocation, waitPostProceedOrExceptionThrown)).ConfigureAwait(false);
+                    waitPostProceedOrExceptionThrown.WaitOne();
+                    EatException(() => Dispose());
                 }
             }
             else
@@ -88,24 +75,23 @@ namespace Larva.MessageProcess.Interception
                 {
                     PreProceed(invocation);
                     invocation.Proceed();
-                    try
-                    {
-                        PostProceed(invocation);
-                    }
-                    catch { }
+                    EatException(() => PostProceed(invocation));
                 }
                 catch (Exception ex)
                 {
-                    try
+                    EatException(() => ExceptionThrown(invocation, ex));
+                    if (ex is AggregateException)
                     {
-                        ExceptionThrown(invocation, ex);
+                        throw ex;
                     }
-                    catch { }
-                    throw new AggregateException(ex);
+                    else
+                    {
+                        throw new AggregateException(ex);
+                    }
                 }
                 finally
                 {
-                    Dispose();
+                    EatException(() => Dispose());
                 }
             }
         }
@@ -138,6 +124,28 @@ namespace Larva.MessageProcess.Interception
         public virtual void Dispose()
         {
 
+        }
+
+        private void EatException(Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch { }
+        }
+
+        private class InvocationAndEventWaitHandle
+        {
+            public InvocationAndEventWaitHandle(IInvocation invocation, EventWaitHandle waitHandle)
+            {
+                Invocation = invocation;
+                WaitHandle = waitHandle;
+            }
+
+            public IInvocation Invocation { get; private set; }
+
+            public EventWaitHandle WaitHandle { get; private set; }
         }
     }
 }
