@@ -1,4 +1,4 @@
-using Larva.MessageProcess.Interception;
+using Larva.DynamicProxy.Interception;
 using Larva.MessageProcess.RabbitMQ.Infrastructure;
 using Larva.MessageProcess.RabbitMQ.Tests.Commands;
 using RabbitMQTopic;

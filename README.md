@@ -113,6 +113,12 @@ public class CommandConsumer
 
 ## 发布历史
 
+### 1.0.4 （更新日期：2020/6/20）
+
+```plain
+1）去掉名字空间Interception，改为依赖Larva.DynamicProxy。
+```
+
 ### 1.0.3 （更新日期：2020/6/18）
 
 ```plain

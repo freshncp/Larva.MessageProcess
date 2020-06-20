@@ -1,4 +1,4 @@
-﻿using Larva.MessageProcess.Interception;
+﻿using Larva.DynamicProxy.Interception;
 using Larva.MessageProcess.Messaging;
 using System;
 using System.Threading.Tasks;

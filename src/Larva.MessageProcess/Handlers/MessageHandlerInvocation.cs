@@ -1,6 +1,7 @@
-﻿using Larva.MessageProcess.Interception;
+﻿using Larva.DynamicProxy.Interception;
 using Larva.MessageProcess.Messaging;
 using System;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace Larva.MessageProcess.Handlers
@@ -8,7 +9,7 @@ namespace Larva.MessageProcess.Handlers
     internal sealed class MessageHandlerInvocation : InvocationBase
     {
         public MessageHandlerInvocation(IInterceptor[] interceptors, string methodName, Type messageType, object invocationTarget, Func<IMessage, IMessageContext, Task> methodInvocationTargetFunc, object proxy, object[] arguments)
-            : base(interceptors, methodName, new Type[] { messageType, typeof(IMessageContext) }, typeof(Task), invocationTarget, proxy, arguments)
+            : base(interceptors, MemberTypes.Method, methodName, MemberOperateTypes.None, new Type[] { messageType, typeof(IMessageContext) }, Type.EmptyTypes, typeof(Task), invocationTarget, proxy, arguments)
         {
             MethodInvocationTargetFunc = methodInvocationTargetFunc;
         }

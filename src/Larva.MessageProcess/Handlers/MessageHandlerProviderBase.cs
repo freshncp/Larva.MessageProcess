@@ -1,5 +1,5 @@
-﻿using Larva.MessageProcess.Handlers.Attributes;
-using Larva.MessageProcess.Interception;
+﻿using Larva.DynamicProxy.Interception;
+using Larva.MessageProcess.Handlers.Attributes;
 using Larva.MessageProcess.Messaging;
 using System;
 using System.Collections.Generic;

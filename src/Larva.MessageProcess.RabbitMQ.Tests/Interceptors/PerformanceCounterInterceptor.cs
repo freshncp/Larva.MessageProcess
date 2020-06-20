@@ -1,4 +1,4 @@
-using Larva.MessageProcess.Interception;
+using Larva.DynamicProxy.Interception;
 using System;
 using System.Linq;
 
@@ -8,12 +8,12 @@ namespace Larva.MessageProcess.RabbitMQ.Tests
     {
         protected override void PreProceed(IInvocation invocation)
         {
-            Console.WriteLine($"Performance PreProceed {invocation.InvocationTarget.GetType().FullName}.{invocation.MethodName}({string.Join(", ", invocation.ArgumentTypes.Select(s => s.Name))})");
+            Console.WriteLine($"Performance PreProceed {invocation.InvocationTarget.GetType().FullName}.{invocation.MemberName}({string.Join(", ", invocation.ArgumentTypes.Select(s => s.Name))})");
         }
 
         protected override void PostProceed(IInvocation invocation)
         {
-            Console.WriteLine($"Performance PostProceed {invocation.InvocationTarget.GetType().FullName}.{invocation.MethodName}({string.Join(", ", invocation.ArgumentTypes.Select(s => s.Name))})");
+            Console.WriteLine($"Performance PostProceed {invocation.InvocationTarget.GetType().FullName}.{invocation.MemberName}({string.Join(", ", invocation.ArgumentTypes.Select(s => s.Name))})");
         }
     }
 }

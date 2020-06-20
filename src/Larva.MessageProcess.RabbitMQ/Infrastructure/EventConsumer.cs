@@ -1,5 +1,5 @@
 using log4net;
-using Larva.MessageProcess.Interception;
+using Larva.DynamicProxy.Interception;
 using Larva.MessageProcess.Messaging;
 using Larva.MessageProcess.Processing;
 using Larva.MessageProcess.RabbitMQ.Eventing;
