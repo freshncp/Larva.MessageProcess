@@ -1,5 +1,7 @@
 # Larva.MessageProcess
 
+![.NET Core](https://github.com/freshncp/Larva.MessageProcess/workflows/.NET%20Core/badge.svg?branch=master&event=push)
+
 消息处理框架。不同业务键并行处理，相同业务键串行处理，思路来源于 [ENode](http://github.com/tangxuehua/enode)。
 
 - 消息的消息类型名，默认为`typeof(TMessage).FullName`，可则通过标记`[MessageType("<name>")]` 自定义设置
