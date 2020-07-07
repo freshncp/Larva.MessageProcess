@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Larva.MessageProcess.Handlers.Attributes
+namespace Larva.MessageProcess.Handling.Attributes
 {
     /// <summary>
     /// 处理优先级，用于同一个消息类型、同一个订阅者，多个处理器的优先级设置

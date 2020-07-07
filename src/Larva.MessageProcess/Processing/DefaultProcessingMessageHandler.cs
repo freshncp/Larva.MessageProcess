@@ -1,4 +1,5 @@
-﻿using Larva.MessageProcess.Handlers;
+﻿using Larva.MessageProcess.Handling;
+using Larva.MessageProcess.Handling.AutoIdempotent;
 using Larva.MessageProcess.Messaging;
 using System;
 using System.Collections.Concurrent;
@@ -16,7 +17,17 @@ namespace Larva.MessageProcess.Processing
     {
         private volatile int _initialized;
         private IMessageHandlerProvider _messageHandlerProvider;
-        private ConcurrentDictionary<string, string> _problemBusinessKeys = new ConcurrentDictionary<string, string>();
+        private ConcurrentDictionary<string, string> _problemBusinessKeys;
+        private readonly ILogger _logger;
+
+        /// <summary>
+        /// 处理中消息的处理器
+        /// </summary>
+        public DefaultProcessingMessageHandler()
+        {
+            _problemBusinessKeys = new ConcurrentDictionary<string, string>();
+            _logger = LoggerManager.GetLogger(GetType());
+        }
 
         /// <summary>
         /// 初始化
@@ -79,7 +90,14 @@ namespace Larva.MessageProcess.Processing
                     var handlerProxyList = messageHandlerProxyDict[message];
                     foreach (var messageHandler in handlerProxyList)
                     {
-                        await messageHandler.HandleAsync(message, processingMessage.ExecutingContext).ConfigureAwait(false);
+                        try
+                        {
+                            await messageHandler.HandleAsync(message, processingMessage.ExecutingContext).ConfigureAwait(false);
+                        }
+                        catch (DuplicateMessageHandlingException ex)
+                        {
+                            _logger.Warn(ex.Message);
+                        }
                     }
                 }
                 var result = processingMessage.ExecutingContext.GetResult();
@@ -105,7 +123,7 @@ namespace Larva.MessageProcess.Processing
         {
             if (exception is AggregateException && ((AggregateException)exception).InnerExceptions.Count > 0)
             {
-                return ((AggregateException)exception).InnerExceptions.First();
+                return ((AggregateException)exception).InnerExceptions[0];
             }
             return exception;
         }

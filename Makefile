@@ -1,7 +1,11 @@
 all: pack
 
 test:
+	dotnet test src/Larva.MessageProcess.Tests
+
+test-mq:
 	dotnet test src/Larva.MessageProcess.RabbitMQ.Tests
+
 
 pack: build
 	mkdir -p `pwd`/packages
@@ -10,5 +14,6 @@ pack: build
 
 build:
 	dotnet build -c Release `pwd`/src/Larva.MessageProcess/
+	dotnet build -c Release `pwd`/src/Larva.MessageProcess.Tests/
 	dotnet build -c Release `pwd`/src/Larva.MessageProcess.RabbitMQ/
 	dotnet build -c Release `pwd`/src/Larva.MessageProcess.RabbitMQ.Tests/

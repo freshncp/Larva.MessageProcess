@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Larva.MessageProcess.Handlers.Attributes
+namespace Larva.MessageProcess.Handling.Attributes
 {
     /// <summary>
     /// 消息订阅者

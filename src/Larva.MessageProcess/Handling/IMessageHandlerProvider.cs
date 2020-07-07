@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Larva.MessageProcess.Handlers
+namespace Larva.MessageProcess.Handling
 {
     /// <summary>
     /// 消息处理器提供者 接口

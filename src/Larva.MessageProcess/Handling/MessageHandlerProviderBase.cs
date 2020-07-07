@@ -1,12 +1,12 @@
 ﻿using Larva.DynamicProxy.Interception;
-using Larva.MessageProcess.Handlers.Attributes;
+using Larva.MessageProcess.Handling.Attributes;
 using Larva.MessageProcess.Messaging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace Larva.MessageProcess.Handlers
+namespace Larva.MessageProcess.Handling
 {
     /// <summary>
     /// 消息处理器提供者 抽象类
@@ -115,7 +115,7 @@ namespace Larva.MessageProcess.Handlers
                     handlers = new List<Tuple<string, byte, IMessageHandlerProxy>>();
                     _handlerDict.Add(key, handlers);
                 }
-                if (handlers.Any(x => x.Item3.GetWrappedObject().GetType() == handlerType))
+                if (handlers.Any(x => x.Item3.GetProxiedObject().GetType() == handlerType))
                 {
                     continue;
                 }

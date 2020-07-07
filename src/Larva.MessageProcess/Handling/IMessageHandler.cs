@@ -1,7 +1,7 @@
 ﻿using Larva.MessageProcess.Messaging;
 using System.Threading.Tasks;
 
-namespace Larva.MessageProcess.Handlers
+namespace Larva.MessageProcess.Handling
 {
     /// <summary>
     /// 消息处理器 接口

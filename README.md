@@ -22,11 +22,11 @@
 
 - `IMessageHandler` 支持拦截器，需实现接口 `IInterceptor` 或直接继承 `StandardInterceptor`
 
+- `MessageHandler` 支持幂等。通过 `StandardInterceptor` 的 `PreProceed`，使用实现了 `IAutoIdempotentStore` 的幂等存储，来判断是否已处理过，已处理过的抛出 `DuplicateMessageHandlingException` 异常，在 `PostProceed` 中保存已处理
+
 ## 开发日程
 
-1）`MessageHandler` 的幂等支持
-
-2）消息严格顺序支持
+1）消息自定义顺序支持
 
 ## 安装
 
@@ -114,6 +114,14 @@ public class CommandConsumer
 ```
 
 ## 发布历史
+
+### 1.1.0 （更新日期：2020/7/8）
+
+```plain
+1）升级Larva.DynamicProxy；
+2）Handlers 重命名为 Handling；
+3）新增幂等支持，通过标准拦截器的PreProceed，使用实现了IAutoIdempotentStore的幂等存储，来判断是否已处理过，已处理过的抛出DuplicateMessageHandlingException异常，在PostProceed中保存已处理。
+```
 
 ### 1.0.4 （更新日期：2020/6/20）
 

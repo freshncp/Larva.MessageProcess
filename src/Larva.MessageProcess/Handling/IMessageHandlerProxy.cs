@@ -1,7 +1,7 @@
 ﻿using Larva.MessageProcess.Messaging;
 using System.Threading.Tasks;
 
-namespace Larva.MessageProcess.Handlers
+namespace Larva.MessageProcess.Handling
 {
     /// <summary>
     /// 消息处理器代理 接口
@@ -17,9 +17,9 @@ namespace Larva.MessageProcess.Handlers
         Task HandleAsync(IMessage message, IMessageContext ctx);
 
         /// <summary>
-        /// 获取封装的对象
+        /// 获取被代理的对象
         /// </summary>
         /// <returns></returns>
-        object GetWrappedObject();
+        object GetProxiedObject();
     }
 }

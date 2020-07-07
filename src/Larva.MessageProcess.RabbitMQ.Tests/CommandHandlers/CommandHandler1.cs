@@ -1,4 +1,4 @@
-using Larva.MessageProcess.Handlers;
+using Larva.MessageProcess.Handling;
 using Larva.MessageProcess.Messaging;
 using Larva.MessageProcess.RabbitMQ.Commanding;
 using Larva.MessageProcess.RabbitMQ.Tests.Commands;

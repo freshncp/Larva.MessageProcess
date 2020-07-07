@@ -1,5 +1,5 @@
-using Larva.MessageProcess.Handlers;
-using Larva.MessageProcess.Handlers.Attributes;
+using Larva.MessageProcess.Handling;
+using Larva.MessageProcess.Handling.Attributes;
 using Larva.MessageProcess.RabbitMQ.Eventing;
 using Larva.MessageProcess.RabbitMQ.Tests.DomainEvents;
 using System;

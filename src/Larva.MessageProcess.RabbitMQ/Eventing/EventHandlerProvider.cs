@@ -1,4 +1,4 @@
-using Larva.MessageProcess.Handlers;
+using Larva.MessageProcess.Handling;
 using System;
 
 namespace Larva.MessageProcess.RabbitMQ.Eventing

@@ -1,4 +1,5 @@
-﻿using Larva.MessageProcess.Processing;
+﻿using Larva.MessageProcess.Messaging;
+using Larva.MessageProcess.Processing;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -107,12 +108,12 @@ namespace Larva.MessageProcess.MailBoxes
                 if (_messageDict.TryAdd(message.Sequence, message))
                 {
                     _nextSequence++;
-                    _logger.Debug($"{GetType().Name} enqueued new message, businessKey: {BusinessKey}, messageId: {message.Message.Id}, messageSequence: {message.Sequence}");
+                    _logger.Debug($"{GetType().Name} enqueued new message, businessKey: {BusinessKey}, messageId: {message.Message.Id}, messageType: {message.Message.GetMessageTypeName()}, messageSequence: {message.Sequence}");
                     TryRun();
                 }
                 else
                 {
-                    _logger.Error($"{GetType().Name} enqueue message failed, businessKey: {BusinessKey}, messageId: {message.Message.Id}, messageSequence: {message.Sequence}");
+                    _logger.Error($"{GetType().Name} enqueue message failed, businessKey: {BusinessKey}, messageId: {message.Message.Id}, messageType: {message.Message.GetMessageTypeName()}, messageSequence: {message.Sequence}");
                 }
             }
         }
