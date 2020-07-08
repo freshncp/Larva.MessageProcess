@@ -1,9 +1,11 @@
+using Larva.MessageProcess.Messaging.Attributes;
 using Larva.MessageProcess.RabbitMQ.Commanding;
 using System;
 using System.Collections.Generic;
 
 namespace Larva.MessageProcess.RabbitMQ.Tests.Commands
 {
+    [MessageType("Command1")]
     public class Command1 : ICommand
     {
         public Command1(string businessKey)

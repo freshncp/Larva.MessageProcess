@@ -1,5 +1,6 @@
 using Larva.MessageProcess.Messaging.Attributes;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -11,6 +12,8 @@ namespace Larva.MessageProcess.Messaging
     /// </summary>
     public static class IMessageExtensions
     {
+        private static ConcurrentDictionary<Type, string> _messageTypeCache = new ConcurrentDictionary<Type, string>();
+
         /// <summary>
         /// 获取消息类型名
         /// </summary>
@@ -41,8 +44,13 @@ namespace Larva.MessageProcess.Messaging
         /// <returns></returns>
         public static string GetMessageTypeName(this Type messageType)
         {
-            var messageTypeAttr = messageType.GetCustomAttribute<MessageTypeAttribute>();
-            return messageTypeAttr == null ? messageType.FullName : messageTypeAttr.Name;
+            if (!_messageTypeCache.ContainsKey(messageType))
+            {
+                var messageTypeAttr = messageType.GetCustomAttribute<MessageTypeAttribute>();
+                var messageTypeName = messageTypeAttr == null ? messageType.FullName : messageTypeAttr.Name;
+                _messageTypeCache.TryAdd(messageType, messageTypeName);
+            }
+            return _messageTypeCache[messageType];
         }
 
         /// <summary>

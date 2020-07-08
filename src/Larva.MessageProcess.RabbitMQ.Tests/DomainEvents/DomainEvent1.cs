@@ -1,3 +1,4 @@
+using Larva.MessageProcess.Messaging.Attributes;
 using Larva.MessageProcess.RabbitMQ.Eventing;
 using System;
 using System.Collections.Generic;
@@ -5,6 +6,7 @@ using System.Collections.Generic;
 namespace Larva.MessageProcess.RabbitMQ.Tests.DomainEvents
 {
 
+    [MessageType("DomainEvent1")]
     public class DomainEvent1 : IDomainEvent
     {
         public DomainEvent1(string businessKey)

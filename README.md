@@ -4,11 +4,11 @@
 
 消息处理框架。不同业务键并行处理，相同业务键串行处理，思路来源于 [ENode](http://github.com/tangxuehua/enode)。
 
-- 消息的消息类型名，默认为`typeof(TMessage).FullName`，可则通过标记`[MessageType("<name>")]` 自定义设置
+- 消息的消息类型名，默认为`typeof(TMessage).FullName`，可通过标记`[MessageType("<name>")]` 自定义设置
 
 - 支持多个订阅者，通过标记`[MessageSubscriber("<subscriber>")`到消息处理器来实现，订阅者之间并行消费
 
-- 同一个消息、同一个消费者，如果有多个消息处理器，对于有执行顺序要求的，通过标记`[HandlePriority(1)]`来实现
+- 同一个消息、同一个消费者，支持多个消息处理器，消息处理器之间串行处理；对于有执行顺序要求的，可通过标记`[HandlePriority(1)]`来实现，数字越小，优先级越高
 
 - 消息是和消息处理器对应关系，如1:1、1:N，通过自定义实现 `MessageHandlerProviderBase` 来约束
 
