@@ -37,6 +37,23 @@ namespace Larva.MessageProcess.Handling.AutoIdempotent
             return _handledMessageDict.ContainsKey(key);
         }
 
+        /// <summary>
+        /// 等待保存完成
+        /// </summary>
+        public void WaitForSave()
+        {
+            // Retry save agin if fail, like io error.
+        }
+
+        /// <summary>
+        /// 等待保存完成
+        /// </summary>
+        /// <param name="timeout">超时时间</param>
+        public void WaitForSave(TimeSpan timeout)
+        {
+            // Retry save agin if fail, like io error.
+        }
+
         private string BuildKey(IMessage message, Type messageHandlerType, bool multipleMessageHandlers)
         {
             return multipleMessageHandlers ? $"{message.BusinessKey}:{message.Id}:{messageHandlerType.FullName}" : $"{message.BusinessKey}:{message.Id}";
