@@ -19,7 +19,7 @@ namespace Larva.MessageProcess.Handling
         /// </summary>
         /// <param name="messageHandler"></param>
         /// <param name="interceptors"></param>
-        public MessageHandlerProxy(IMessageHandler<TMessage> messageHandler, params IInterceptor[] interceptors)
+        public MessageHandlerProxy(IMessageHandler<TMessage> messageHandler, IInterceptor[] interceptors)
         {
             if (messageHandler == null)
             {

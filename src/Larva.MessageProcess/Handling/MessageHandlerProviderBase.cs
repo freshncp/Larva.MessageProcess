@@ -32,7 +32,7 @@ namespace Larva.MessageProcess.Handling
         /// </summary>
         /// <param name="interceptors">拦截器</param>
         /// <param name="assemblies">程序集</param>
-        public void Initialize(IInterceptor[] interceptors, params Assembly[] assemblies)
+        public void Initialize(IInterceptor[] interceptors, Assembly[] assemblies)
         {
             _handlerDict.Clear();
             _messageTypes.Clear();
@@ -96,7 +96,8 @@ namespace Larva.MessageProcess.Handling
 
         private void RegisterHandler(Type handlerType, IInterceptor[] interceptors)
         {
-            var handlerInterfaceTypes = handlerType.GetInterfaces().Where(x => x.IsGenericType && x.GetGenericTypeDefinition() == GetMessageHandlerInterfaceGenericType());
+            var handlerInterfaceTypes = handlerType.GetInterfaces()
+                .Where(x => x.IsGenericType && x.GetGenericTypeDefinition() == GetMessageHandlerInterfaceGenericType());
             if (!handlerInterfaceTypes.Any()) return;
 
             var realHandler = ObjectContainer.Resolve(handlerType);
