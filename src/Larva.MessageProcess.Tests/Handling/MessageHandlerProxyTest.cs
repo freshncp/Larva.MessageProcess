@@ -33,7 +33,10 @@ namespace Larva.MessageProcess.Tests.Handling
         [Fact]
         public void HandleWithOneInterceptor()
         {
-            var proxy = new MessageHandlerProxy<MessageA>(new MessageHandler1(), new InterceptorA());
+            var proxy = new MessageHandlerProxy<MessageA>(new MessageHandler1(),
+                new IInterceptor[] {
+                    new InterceptorA()
+                });
             var message = new MessageA { Id = Guid.NewGuid().ToString(), BusinessKey = "Key1" };
             var ctx = new MockupMessageContext();
             proxy.HandleAsync(message, ctx).Wait();
@@ -43,7 +46,11 @@ namespace Larva.MessageProcess.Tests.Handling
         [Fact]
         public void HandleWithTwoInterceptor()
         {
-            var proxy = new MessageHandlerProxy<MessageA>(new MessageHandler1(), new InterceptorA(), new InterceptorB());
+            var proxy = new MessageHandlerProxy<MessageA>(new MessageHandler1(),
+                new IInterceptor[] {
+                    new InterceptorA(),
+                    new InterceptorB()
+                });
             var message = new MessageA { Id = Guid.NewGuid().ToString(), BusinessKey = "Key1" };
             var ctx = new MockupMessageContext();
             proxy.HandleAsync(message, ctx).Wait();
@@ -53,7 +60,10 @@ namespace Larva.MessageProcess.Tests.Handling
         [Fact]
         public void HandleWithAutoIdempotentInterceptor()
         {
-            var proxy = new MessageHandlerProxy<MessageA>(new MessageHandler1(), new AutoIdempotentInterceptor());
+            var proxy = new MessageHandlerProxy<MessageA>(new MessageHandler1(),
+                new IInterceptor[] {
+                    new AutoIdempotentInterceptor()
+                });
             var message = new MessageA { Id = Guid.NewGuid().ToString(), BusinessKey = "Key1" };
             var ctx = new MockupMessageContext();
             proxy.HandleAsync(message, ctx).Wait();
