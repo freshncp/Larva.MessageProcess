@@ -107,7 +107,7 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
                 }
                 else
                 {
-                    _logger.Error($"Result={messageResult}, RawMessage={JsonConvert.SerializeObject(messageResult.RawMessage)}");
+                    _logger.Error($"Result={messageResult}, RawMessage={JsonConvert.SerializeObject(messageResult.RawMessage)}\r\n{messageResult.StackTrace}");
                 }
                 return Task.CompletedTask;
             }
