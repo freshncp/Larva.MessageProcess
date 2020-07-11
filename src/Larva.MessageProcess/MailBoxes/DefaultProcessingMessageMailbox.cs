@@ -2,7 +2,6 @@
 using Larva.MessageProcess.Processing;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -25,11 +24,6 @@ namespace Larva.MessageProcess.MailBoxes
         private long _consumingSequence;
 
         /// <summary>
-        /// 批量处理 配置名
-        /// </summary>
-        public const string CONFIG_BATCH_SIZE = "batchSize";
-
-        /// <summary>
         /// 处理中消息邮箱
         /// </summary>
         public DefaultProcessingMessageMailbox()
@@ -46,22 +40,14 @@ namespace Larva.MessageProcess.MailBoxes
         /// </summary>
         /// <param name="businessKey"></param>
         /// <param name="messageHandler"></param>
-        /// <param name="configDict"></param>
-        public void Initialize(string businessKey, IProcessingMessageHandler messageHandler, IDictionary<string, string> configDict = null)
+        /// <param name="batchSize"></param>
+        public void Initialize(string businessKey, IProcessingMessageHandler messageHandler, int batchSize)
         {
             if (Interlocked.CompareExchange(ref _initialized, 1, 0) == 0)
             {
                 BusinessKey = businessKey;
                 _messageHandler = messageHandler;
-                _batchSize = 1000;
-                if (configDict != null)
-                {
-                    if (configDict.ContainsKey(CONFIG_BATCH_SIZE)
-                        && !int.TryParse(configDict[CONFIG_BATCH_SIZE], out _batchSize))
-                    {
-                        _batchSize = 1000;
-                    }
-                }
+                _batchSize = batchSize <= 0 ? 1000 : batchSize;
             }
         }
 

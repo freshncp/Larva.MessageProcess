@@ -1,6 +1,5 @@
 ﻿using Larva.MessageProcess.Processing;
 using System;
-using System.Collections.Generic;
 using System.Threading;
 
 namespace Larva.MessageProcess.MailBoxes
@@ -45,8 +44,8 @@ namespace Larva.MessageProcess.MailBoxes
         /// </summary>
         /// <param name="businessKey"></param>
         /// <param name="messageHandler"></param>
-        /// <param name="configDict"></param>
-        void Initialize(string businessKey, IProcessingMessageHandler messageHandler, IDictionary<string, string> configDict = null);
+        /// <param name="batchSize"></param>
+        void Initialize(string businessKey, IProcessingMessageHandler messageHandler, int batchSize);
 
         /// <summary>
         /// 入队

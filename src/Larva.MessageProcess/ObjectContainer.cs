@@ -21,15 +21,46 @@ namespace Larva.MessageProcess
         /// <summary>
         /// 解析
         /// </summary>
-        /// <param name="serviceType"></param>
+        /// <param name="implementationType"></param>
         /// <returns></returns>
-        public static object Resolve(Type serviceType)
+        public static object Resolve(Type implementationType)
         {
-            if (_resolverFunc == null)
+            try
             {
-                return Activator.CreateInstance(serviceType);
+                if (_resolverFunc != null)
+                {
+                    return _resolverFunc(implementationType);
+                }
             }
-            return _resolverFunc(serviceType);
+            catch { }
+            return Activator.CreateInstance(implementationType);
+        }
+
+        /// <summary>
+        /// 解析
+        /// </summary>
+        /// <param name="serviceType"></param>
+        /// <param name="defaultImplementationType"></param>
+        /// <returns></returns>
+        public static object Resolve(Type serviceType, Type defaultImplementationType)
+        {
+            if (!serviceType.IsInterface)
+            {
+                throw new InvalidOperationException($"Type {serviceType.FullName} is not interface.");
+            }
+            if (!serviceType.IsAssignableFrom(defaultImplementationType))
+            {
+                throw new InvalidCastException($"Type {defaultImplementationType.FullName} is not implement the interface {serviceType.FullName}.");
+            }
+            try
+            {
+                if (_resolverFunc != null)
+                {
+                    return _resolverFunc(serviceType);
+                }
+            }
+            catch { }
+            return Activator.CreateInstance(defaultImplementationType);
         }
     }
 }

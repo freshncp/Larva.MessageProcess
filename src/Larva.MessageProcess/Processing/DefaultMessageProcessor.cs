@@ -19,6 +19,7 @@ namespace Larva.MessageProcess.Processing
         private int _timeoutSeconds;
         private int _cleanInactiveMailboxIntervalSeconds;
         private Timer _cleanInactiveMailboxTimer;
+        private int _batchSize;
 
         /// <summary>
         /// 默认消息处理器
@@ -36,13 +37,15 @@ namespace Larva.MessageProcess.Processing
         /// <param name="handler"></param>
         /// <param name="timeoutSeconds"></param>
         /// <param name="cleanInactiveMailboxIntervalSeconds"></param>
-        public void Initialize(IProcessingMessageHandler handler, int timeoutSeconds = 86400, int cleanInactiveMailboxIntervalSeconds = 10)
+        /// <param name="batchSize"></param>
+        public void Initialize(IProcessingMessageHandler handler, int timeoutSeconds = 86400, int cleanInactiveMailboxIntervalSeconds = 10, int batchSize = 1000)
         {
             if (Interlocked.CompareExchange(ref _initialized, 1, 0) == 0)
             {
                 _handler = handler;
                 _timeoutSeconds = timeoutSeconds;
                 _cleanInactiveMailboxIntervalSeconds = cleanInactiveMailboxIntervalSeconds;
+                _batchSize = batchSize;
             }
         }
 
@@ -61,8 +64,8 @@ namespace Larva.MessageProcess.Processing
 
             var mailbox = _mailboxDict.GetOrAdd(businessKey, x =>
             {
-                var newMailBox = new DefaultProcessingMessageMailbox();
-                newMailBox.Initialize(x, _handler);
+                var newMailBox = (IProcessingMessageMailbox)ObjectContainer.Resolve(typeof(IProcessingMessageMailbox),typeof(DefaultProcessingMessageMailbox));
+                newMailBox.Initialize(x, _handler, _batchSize);
                 return newMailBox;
             });
 
@@ -72,8 +75,8 @@ namespace Larva.MessageProcess.Processing
                 mailbox.Locker.Enter(ref lockToken);
                 if (mailbox.IsRemoved)
                 {
-                    mailbox = new DefaultProcessingMessageMailbox();
-                    mailbox.Initialize(businessKey, _handler);
+                    mailbox = (IProcessingMessageMailbox)ObjectContainer.Resolve(typeof(IProcessingMessageMailbox),typeof(DefaultProcessingMessageMailbox));
+                    mailbox.Initialize(businessKey, _handler, _batchSize);
                     _mailboxDict.TryAdd(businessKey, mailbox);
                 }
                 mailbox.Enqueue(processinMessage);
