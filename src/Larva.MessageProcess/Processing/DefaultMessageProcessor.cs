@@ -1,4 +1,4 @@
-﻿using Larva.MessageProcess.MailBoxes;
+﻿using Larva.MessageProcess.Mailboxes;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;

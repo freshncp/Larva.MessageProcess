@@ -5,7 +5,7 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Larva.MessageProcess.MailBoxes
+namespace Larva.MessageProcess.Mailboxes
 {
     /// <summary>
     /// 处理中消息邮箱

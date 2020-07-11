@@ -2,7 +2,7 @@
 using System;
 using System.Threading;
 
-namespace Larva.MessageProcess.MailBoxes
+namespace Larva.MessageProcess.Mailboxes
 {
     /// <summary>
     /// 处理中消息邮箱 接口
