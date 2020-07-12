@@ -52,8 +52,8 @@ namespace Larva.MessageProcess.Tests.Mailboxes
         {
             IProcessingMessageMailbox mailbox = new DefaultProcessingMessageMailbox();
             var processingMessageHandler = new MockupProcessingMessageHandler();
-            mailbox.Initialize("B001", processingMessageHandler, 10);
-            var testCount = 30;
+            mailbox.Initialize("B001", processingMessageHandler, 5);
+            var testCount = 20;
             for (var i = 0; i < testCount; i++)
             {
                 mailbox.Enqueue(new ProcessingMessage(new MessageA { Id = $"M{i + 1}", Timestamp = DateTime.Now, BusinessKey = "B001" }, string.Empty, new MockupMessageExecutingContext()));
@@ -94,9 +94,9 @@ namespace Larva.MessageProcess.Tests.Mailboxes
                 return _result;
             }
 
-            public Task NotifyMessageExecutedAsync(MessageExecutingResult messageResult)
-            {
-                return Task.CompletedTask;
+            public async Task NotifyMessageExecutedAsync(MessageExecutingResult messageResult)
+            {   
+                await Task.Delay(10);
             }
 
             public void SetResult(string result)
@@ -111,6 +111,7 @@ namespace Larva.MessageProcess.Tests.Mailboxes
             public async Task HandleAsync(ProcessingMessage processingMessage)
             {
                 _queue.Enqueue(processingMessage);
+                await Task.Delay(10);
                 await processingMessage.CompleteAsync(new MessageExecutingResult(MessageExecutingStatus.Success, processingMessage.Message, processingMessage.MessageSubscriber));
             }
 
