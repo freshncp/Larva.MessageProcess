@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Larva.MessageProcess.Messaging
 {
@@ -20,6 +21,27 @@ namespace Larva.MessageProcess.Messaging
         /// <param name="noHandlerAllowed">是否允许无Handler</param>
         public MessageGroup(string id, DateTime timestamp, string businessKey, IDictionary<string, string> extraDatas, IEnumerable<IMessage> messages, bool noHandlerAllowed)
         {
+            if (string.IsNullOrEmpty(id))
+            {
+                throw new ArgumentNullException(nameof(id));
+            }
+            if (timestamp == DateTime.MinValue)
+            {
+                throw new ArgumentNullException(nameof(timestamp));
+            }
+            if (string.IsNullOrEmpty(businessKey))
+            {
+                throw new ArgumentNullException(nameof(businessKey));
+            }
+            if (messages == null || !messages.Any())
+            {
+                throw new ArgumentNullException(nameof(messages));
+            }
+            if (messages.Any(a => a == null || a.BusinessKey != businessKey))
+            {
+                throw new InvalidOperationException($"Exists message is null or it's business key is not equal with group message's, businessKey:\"{businessKey}\", messageId: {id}, timestamp: {timestamp.ToString("yyyy-MM-dd HH:mm:ss")}.");
+            }
+
             ((IMessage)this).Id = id;
             ((IMessage)this).Timestamp = timestamp;
             ((IMessage)this).BusinessKey = businessKey;

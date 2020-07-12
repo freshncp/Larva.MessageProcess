@@ -16,7 +16,7 @@
 
 - 消息可以没有消息处理器，消息执行结果为 `HandlerNotFound`，使用者可以自行决定是否ACK
 
-- 支持消息组概念，即将一组消息打包成一个消息 `MessageGroup`，进行发送和消费
+- 支持消息组概念，即将一组BusinessKey相同的消息打包成一个消息 `MessageGroup`，进行发送和消费
 
 - 相同 `BusinessKey` 的消息，如果处理失败，默认此类消息不会继续处理，必须前面的消息处理完才可以继续，可通过构造 `ProcessingMessage` 时设置 `continueWhenHandleFail`
 
