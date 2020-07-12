@@ -110,7 +110,6 @@ namespace Larva.MessageProcess.Mailboxes
                 if (_processingMessageDict.TryAdd(processingMessage.Sequence, processingMessage))
                 {
                     _nextSequence++;
-                    _logger.Debug($"{GetType().Name} enqueued new message, businessKey: {BusinessKey}, messageId: {processingMessage.Message.Id}, messageType: {processingMessage.Message.GetMessageTypeName()}, messageSequence: {processingMessage.Sequence}");
                     TryRun();
                 }
                 else
