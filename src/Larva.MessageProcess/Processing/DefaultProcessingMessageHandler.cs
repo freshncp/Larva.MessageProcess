@@ -101,7 +101,7 @@ namespace Larva.MessageProcess.Processing
                     }
                 }
                 var result = processingMessage.ExecutingContext.GetResult();
-                await CompleteMessageAsync(processingMessage, MessageExecutingStatus.Success, typeof(string).FullName, result);
+                await CompleteMessageAsync(processingMessage, MessageExecutingStatus.Success, typeof(string).FullName, result).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

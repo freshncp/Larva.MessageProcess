@@ -150,7 +150,7 @@ namespace Larva.MessageProcess.Mailboxes
             var trySuccess = Interlocked.CompareExchange(ref _isRunning, 1, 0) == 0;
             if (trySuccess)
             {
-                Task.Factory.StartNew(ProcessMessagesAsync, TaskCreationOptions.PreferFairness);
+                Task.Factory.StartNew(ProcessMessagesAsync);
             }
             return trySuccess;
         }
