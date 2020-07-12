@@ -13,8 +13,8 @@ namespace Larva.MessageProcess.Mailboxes
     public class DefaultProcessingMessageMailbox : IProcessingMessageMailbox
     {
         private readonly object _lockObj = new object();
-        private readonly ConcurrentDictionary<long, ProcessingMessage> _messageDict;
-        private IProcessingMessageHandler _messageHandler;
+        private readonly ConcurrentDictionary<long, ProcessingMessage> _processingMessageDict;
+        private IProcessingMessageHandler _processingMessageHandler;
         private int _batchSize;
         private readonly ILogger _logger;
         private volatile int _initialized;
@@ -28,7 +28,7 @@ namespace Larva.MessageProcess.Mailboxes
         /// </summary>
         public DefaultProcessingMessageMailbox()
         {
-            _messageDict = new ConcurrentDictionary<long, ProcessingMessage>();
+            _processingMessageDict = new ConcurrentDictionary<long, ProcessingMessage>();
             _nextSequence = 1;
             _logger = LoggerManager.GetLogger(GetType());
             LastActiveTime = DateTime.Now;
@@ -39,14 +39,18 @@ namespace Larva.MessageProcess.Mailboxes
         /// 初始化
         /// </summary>
         /// <param name="businessKey"></param>
-        /// <param name="messageHandler"></param>
+        /// <param name="processingMessageHandler"></param>
         /// <param name="batchSize"></param>
-        public void Initialize(string businessKey, IProcessingMessageHandler messageHandler, int batchSize)
+        public void Initialize(string businessKey, IProcessingMessageHandler processingMessageHandler, int batchSize)
         {
+            if (string.IsNullOrEmpty(businessKey))
+            {
+                throw new ArgumentNullException(nameof(businessKey));
+            }
             if (Interlocked.CompareExchange(ref _initialized, 1, 0) == 0)
             {
                 BusinessKey = businessKey;
-                _messageHandler = messageHandler;
+                _processingMessageHandler = processingMessageHandler;
                 _batchSize = batchSize <= 0 ? 1000 : batchSize;
             }
         }
@@ -84,22 +88,34 @@ namespace Larva.MessageProcess.Mailboxes
         /// <summary>
         /// 入队
         /// </summary>
-        /// <param name="message"></param>
-        public void Enqueue(ProcessingMessage message)
+        /// <param name="processingMessage"></param>
+        public void Enqueue(ProcessingMessage processingMessage)
         {
+            if (processingMessage == null)
+            {
+                throw new ArgumentNullException(nameof(processingMessage));
+            }
+            if (processingMessage.Message == null)
+            {
+                throw new ArgumentNullException(nameof(processingMessage), $"Property \"{nameof(processingMessage.Message)}\" cann't be null.");
+            }
+            if (processingMessage.Message.BusinessKey != BusinessKey)
+            {
+                throw new InvalidOperationException($"Message's business key \"{processingMessage.Message.BusinessKey}\" is not equal with mailbox's, businessKey: {BusinessKey}, messageId: {processingMessage.Message.Id}, messageType: {processingMessage.Message.GetMessageTypeName()}.");
+            }
             lock (_lockObj)
             {
-                message.Sequence = _nextSequence;
-                message.SetTryDequeueCallback(this.TryDequeue);
-                if (_messageDict.TryAdd(message.Sequence, message))
+                processingMessage.Sequence = _nextSequence;
+                processingMessage.SetTryDequeueCallback(this.TryDequeue);
+                if (_processingMessageDict.TryAdd(processingMessage.Sequence, processingMessage))
                 {
                     _nextSequence++;
-                    _logger.Debug($"{GetType().Name} enqueued new message, businessKey: {BusinessKey}, messageId: {message.Message.Id}, messageType: {message.Message.GetMessageTypeName()}, messageSequence: {message.Sequence}");
+                    _logger.Debug($"{GetType().Name} enqueued new message, businessKey: {BusinessKey}, messageId: {processingMessage.Message.Id}, messageType: {processingMessage.Message.GetMessageTypeName()}, messageSequence: {processingMessage.Sequence}");
                     TryRun();
                 }
                 else
                 {
-                    _logger.Error($"{GetType().Name} enqueue message failed, businessKey: {BusinessKey}, messageId: {message.Message.Id}, messageType: {message.Message.GetMessageTypeName()}, messageSequence: {message.Sequence}");
+                    _logger.Error($"{GetType().Name} enqueue message failed, businessKey: {BusinessKey}, messageId: {processingMessage.Message.Id}, messageType: {processingMessage.Message.GetMessageTypeName()}, messageSequence: {processingMessage.Sequence}");
                 }
             }
         }
@@ -107,11 +123,11 @@ namespace Larva.MessageProcess.Mailboxes
         /// <summary>
         /// 尝试出队
         /// </summary>
-        /// <param name="message"></param>
+        /// <param name="processingMessage"></param>
         /// <returns></returns>
-        public bool TryDequeue(ProcessingMessage message)
+        public bool TryDequeue(ProcessingMessage processingMessage)
         {
-            return _messageDict.TryRemove(message.Sequence, out ProcessingMessage _);
+            return _processingMessageDict.TryRemove(processingMessage.Sequence, out ProcessingMessage _);
         }
 
         /// <summary>
@@ -134,7 +150,7 @@ namespace Larva.MessageProcess.Mailboxes
             var trySuccess = Interlocked.CompareExchange(ref _isRunning, 1, 0) == 0;
             if (trySuccess)
             {
-                Task.Factory.StartNew(ProcessMessagesAsync, TaskCreationOptions.LongRunning);
+                Task.Factory.StartNew(ProcessMessagesAsync, TaskCreationOptions.PreferFairness);
             }
             return trySuccess;
         }
@@ -176,17 +192,17 @@ namespace Larva.MessageProcess.Mailboxes
                 var scannedCount = 0;
                 while (UnhandledCount > 0 && scannedCount < _batchSize)
                 {
-                    var message = GetMessage(_consumingSequence);
-                    if (message != null)
+                    var processingMessage = GetProcessingMessage(_consumingSequence);
+                    if (processingMessage != null)
                     {
-                        await _messageHandler.HandleAsync(message).ConfigureAwait(false);
+                        await _processingMessageHandler.HandleAsync(processingMessage).ConfigureAwait(false);
                     }
                     Interlocked.Increment(ref _consumingSequence);
                 }
             }
             catch (Exception ex)
             {
-                _logger.Error(string.Format("{0} run has unknown exception, businessKey: {1}", GetType().Name, BusinessKey), ex);
+                _logger.Error($"{GetType().Name} run has unknown exception, businessKey: {BusinessKey}", ex);
             }
             finally
             {
@@ -194,11 +210,11 @@ namespace Larva.MessageProcess.Mailboxes
             }
         }
 
-        private ProcessingMessage GetMessage(long sequence)
+        private ProcessingMessage GetProcessingMessage(long sequence)
         {
-            if (_messageDict.TryGetValue(sequence, out ProcessingMessage message))
+            if (_processingMessageDict.TryGetValue(sequence, out ProcessingMessage processingMessage))
             {
-                return message;
+                return processingMessage;
             }
             return null;
         }
