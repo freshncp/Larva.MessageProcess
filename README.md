@@ -115,6 +115,17 @@ public class CommandConsumer
 
 ## 发布历史
 
+### 1.1.1 （更新日期：2020/7/11）
+
+```plain
+1）移除参数的params修饰，此可能在传入null时，导致非预期结果；
+2）调整MessageProcessor、Mailbox，使支持通过ObjectContainer可替换其他Mailbox实现类；
+3）调整ObjectContainer，如果自定义解析器解析失败，则使用默认解析；
+4）重命名名字空间MailBoxes为Mailboxes；
+5）IAutoIdempotentStore 增加方法WaitForSave，用于服务停止时等待保存完成，从而降低不幂等概率；
+6）Mailbox增加了校验，ProcessMessagesAsync的Task启动选项，改为默认。
+```
+
 ### 1.1.0 （更新日期：2020/7/8）
 
 ```plain
