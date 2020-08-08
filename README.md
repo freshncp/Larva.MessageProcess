@@ -18,7 +18,9 @@
 
 - 支持消息组概念，即将一组BusinessKey相同的消息打包成一个消息 `MessageGroup`，进行发送和消费
 
-- 相同 `BusinessKey` 的消息，如果处理失败，默认此类消息不会继续处理，必须前面的消息处理完才可以继续，可通过构造 `ProcessingMessage` 时设置 `continueWhenHandleFail`
+- 相同 `BusinessKey` 的消息，如果处理失败，默认此类消息不会继续处理，必须前面的消息处理完才可以继续，可通过初始化 `IMessageProcessor` 时设置 `continueWhenHandleFail` 来决定出错后是否继续消费
+
+- `IMessageHandler` 处理消息失败后，会在`IProcessingMessageMailbox`中定时重试，可通过初始化 `IMessageProcessor` 时设置 `retryIntervalSeconds`来设置间隔时间，如果相同`BusinessKey`有消息处理，则会等下一周期处理
 
 - `IMessageHandler` 支持拦截器，需实现接口 `IInterceptor` 或直接继承 `StandardInterceptor`
 
@@ -60,38 +62,69 @@ public class CommandHandlerProvider : AbstractMessageHandlerProvider
 public class CommandConsumer
 {
     private DefaultMessageProcessor _commandProcessor;
+    private CommandHandlerProvider _commandHandlerProvider;
+    private Consumer _consumer;
+    private ILogger _logger = LoggerManager.GetLogger(typeof(CommandConsumer));
 
-    public CommandConsumer()
+    public void Initialize(ConsumerSettings consumerSettings, string topic, int queueCount, int retryIntervalSeconds, IInterceptor[] interceptors, params Assembly[] assemblies)
     {
-        var interceptors = new IInterceptor[]
-        {
-            // interceptor
-        };
-        var provider = new CommandHandlerProvider();
-        provider.Initialize(interceptors, typeof(CommandTests).Assembly);
+        _consumer = new Consumer(consumerSettings);
+        _consumer.Subscribe(topic, queueCount);
+        _commandHandlerProvider = new CommandHandlerProvider();
+        _commandHandlerProvider.Initialize(interceptors, assemblies);
         var processingMessageHandler = new DefaultProcessingMessageHandler();
-        processingMessageHandler.Initialize(provider);
+        processingMessageHandler.Initialize(_commandHandlerProvider);
         _commandProcessor = new DefaultMessageProcessor();
-        _commandProcessor.Initialize(processingMessageHandler);
+        _commandProcessor.Initialize(processingMessageHandler, true, retryIntervalSeconds);
     }
+
     public void Start()
     {
+        _consumer.OnMessageReceived += (sender, e) =>
+        {
+            var body = System.Text.Encoding.UTF8.GetString(e.Context.GetBody());
+            try
+            {
+                var commandMessage = JsonConvert.DeserializeObject<CommandMessage>(body);
+                var messageTypes = _commandHandlerProvider.GetMessageTypes();
+                if (!messageTypes.ContainsKey(commandMessage.CommandTypeName))
+                {
+                    _logger.Warn($"Command type not found: {commandMessage.CommandTypeName}, Body={body}");
+                    e.Context.Ack();
+                    return;
+                }
+                var messageType = messageTypes[commandMessage.CommandTypeName];
+                var command = (ICommand)JsonConvert.DeserializeObject(commandMessage.CommandData, messageType);
+                command.MergeExtraDatas(commandMessage.ExtraDatas);
+                var processingCommand = new ProcessingMessage(command, string.Empty, new CommandExecutingContext(_logger, e.Context), commandMessage.ExtraDatas);
+                _commandProcessor.Process(processingCommand);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Consume command fail: {ex.Message}, Body={body}", ex);
+            }
+        };
         _commandProcessor.Start();
-        //TODO: 接收来自MQ的消息
-        var commandExecutingContext = new CommandExecutingContext();
-        var processingMessage = new ProcessingMessage(commandData, string.Empty, commandExecutingContext);
-        _commandProcessor.Process(processingMessage);
+        _consumer.Start();
     }
 
-    public void Stop()
+    public void Shutdown()
     {
-        //TODO: 停止订阅
+        _consumer.Shutdown();
         _commandProcessor.Stop();
     }
 
     internal class CommandExecutingContext : IMessageExecutingContext
     {
         private string _result;
+        private ILogger _logger;
+        private IMessageTransportationContext _transportationContext;
+
+        public CommandExecutingContext(ILogger logger, IMessageTransportationContext transportationContext)
+        {
+            _logger = logger;
+            _transportationContext = transportationContext;
+        }
 
         public string GetResult()
         {
@@ -105,8 +138,15 @@ public class CommandConsumer
 
         public Task NotifyMessageExecutedAsync(MessageExecutingResult messageResult)
         {
-            //TODO: 调用MQ的ACK
-            //TODO: 将结果，反馈给Command发送者
+            if (messageResult.Status == MessageExecutingStatus.Success)
+            {
+                _transportationContext.Ack();
+                _logger.Info($"Result={messageResult}\r\nRawMessage={JsonConvert.SerializeObject(messageResult.RawMessage)}");
+            }
+            else
+            {
+                _logger.Error($"Result={messageResult}\r\nRawMessage={JsonConvert.SerializeObject(messageResult.RawMessage)}\r\n{messageResult.StackTrace}");
+            }
             return Task.CompletedTask;
         }
     }
@@ -118,7 +158,8 @@ public class CommandConsumer
 ### 1.2.0 （更新日期：2020/8/8）
 
 ```plain
-1）支持消息消费失败自动重试，重试间隔以秒计（失败不一定是业务代码bug造成）。
+1）支持消息消费失败自动重试，重试间隔以秒计（失败不一定是业务代码bug造成）；
+2）相同 `BusinessKey` 的消息，如果处理失败，默认此类消息不会继续处理，必须前面的消息处理完才可以继续，此逻辑由IProcessingMessageHandler转到IProcessingMessageMailbox。
 ```
 
 ### 1.1.1 （更新日期：2020/7/12）
