@@ -103,7 +103,7 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
                 if (messageResult.Status == MessageExecutingStatus.Success)
                 {
                     _transportationContext.Ack();
-                    _logger.Debug($"Result={messageResult}, RawMessage={JsonConvert.SerializeObject(messageResult.RawMessage)}");
+                    _logger.Info($"Result={messageResult}, RawMessage={JsonConvert.SerializeObject(messageResult.RawMessage)}");
                 }
                 else
                 {
