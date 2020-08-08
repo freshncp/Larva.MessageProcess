@@ -13,12 +13,14 @@ namespace Larva.MessageProcess.Processing
     {
         private readonly ILogger _logger;
         private readonly ConcurrentDictionary<string, IProcessingMessageMailbox> _mailboxDict;
+        private readonly Timer _cleanInactiveMailboxTimer;
         private volatile int _initialized;
         private volatile int _isRunning;
         private IProcessingMessageHandler _handler;
-        private int _timeoutSeconds;
+        private bool _continueWhenHandleFail;
+        private int _retryIntervalSeconds;
+        private int _mailboxTimeoutSeconds;
         private int _cleanInactiveMailboxIntervalSeconds;
-        private Timer _cleanInactiveMailboxTimer;
         private int _batchSize;
 
         /// <summary>
@@ -35,15 +37,25 @@ namespace Larva.MessageProcess.Processing
         /// 初始化
         /// </summary>
         /// <param name="handler"></param>
-        /// <param name="timeoutSeconds"></param>
-        /// <param name="cleanInactiveMailboxIntervalSeconds"></param>
-        /// <param name="batchSize"></param>
-        public void Initialize(IProcessingMessageHandler handler, int timeoutSeconds = 86400, int cleanInactiveMailboxIntervalSeconds = 10, int batchSize = 1000)
+        /// <param name="continueWhenHandleFail">相同BusinessKey的消息处理失败后，是否继续推进</param>
+        /// <param name="retryIntervalSeconds">重试间隔秒数</param>
+        /// <param name="mailboxTimeoutSeconds">邮箱超时秒数</param>
+        /// <param name="cleanInactiveMailboxIntervalSeconds">清理未激活邮箱间隔秒数</param>
+        /// <param name="batchSize">批量处理大小</param>
+        public void Initialize(
+            IProcessingMessageHandler handler,
+            bool continueWhenHandleFail,
+            int retryIntervalSeconds,
+            int mailboxTimeoutSeconds = 86400,
+            int cleanInactiveMailboxIntervalSeconds = 10,
+            int batchSize = 1000)
         {
             if (Interlocked.CompareExchange(ref _initialized, 1, 0) == 0)
             {
                 _handler = handler;
-                _timeoutSeconds = timeoutSeconds;
+                _continueWhenHandleFail = continueWhenHandleFail;
+                _retryIntervalSeconds = retryIntervalSeconds;
+                _mailboxTimeoutSeconds = mailboxTimeoutSeconds;
                 _cleanInactiveMailboxIntervalSeconds = cleanInactiveMailboxIntervalSeconds;
                 _batchSize = batchSize;
             }
@@ -64,8 +76,8 @@ namespace Larva.MessageProcess.Processing
 
             var mailbox = _mailboxDict.GetOrAdd(businessKey, x =>
             {
-                var newMailBox = (IProcessingMessageMailbox)ObjectContainer.Resolve(typeof(IProcessingMessageMailbox),typeof(DefaultProcessingMessageMailbox));
-                newMailBox.Initialize(x, _handler, _batchSize);
+                var newMailBox = (IProcessingMessageMailbox)ObjectContainer.Resolve(typeof(IProcessingMessageMailbox), typeof(DefaultProcessingMessageMailbox));
+                newMailBox.Initialize(x, _handler, _continueWhenHandleFail, _retryIntervalSeconds, _batchSize);
                 return newMailBox;
             });
 
@@ -75,8 +87,8 @@ namespace Larva.MessageProcess.Processing
                 mailbox.Locker.Enter(ref lockToken);
                 if (mailbox.IsRemoved)
                 {
-                    mailbox = (IProcessingMessageMailbox)ObjectContainer.Resolve(typeof(IProcessingMessageMailbox),typeof(DefaultProcessingMessageMailbox));
-                    mailbox.Initialize(businessKey, _handler, _batchSize);
+                    mailbox = (IProcessingMessageMailbox)ObjectContainer.Resolve(typeof(IProcessingMessageMailbox), typeof(DefaultProcessingMessageMailbox));
+                    mailbox.Initialize(businessKey, _handler, _continueWhenHandleFail, _retryIntervalSeconds, _batchSize);
                     _mailboxDict.TryAdd(businessKey, mailbox);
                 }
                 mailbox.Enqueue(processinMessage);
@@ -115,7 +127,7 @@ namespace Larva.MessageProcess.Processing
                 var allMailBoxFree = true;
                 foreach (var mailBox in _mailboxDict.Values)
                 {
-                    if (!IsMailBoxFree(mailBox))
+                    if (!mailBox.IsFree)
                     {
                         allMailBoxFree = false;
                         break;
@@ -135,7 +147,7 @@ namespace Larva.MessageProcess.Processing
 
             foreach (var pair in _mailboxDict)
             {
-                if (IsMailBoxAllowRemove(pair.Value))
+                if (pair.Value.IsInactive(_mailboxTimeoutSeconds))
                 {
                     inactiveList.Add(pair);
                 }
@@ -150,7 +162,7 @@ namespace Larva.MessageProcess.Processing
                     mailbox.Locker.TryEnter(ref lockToken);
                     if (lockToken)
                     {
-                        if (IsMailBoxAllowRemove(mailbox))
+                        if (mailbox.IsInactive(_mailboxTimeoutSeconds))
                         {
                             if (_mailboxDict.TryRemove(pair.Key, out IProcessingMessageMailbox removed))
                             {
@@ -168,16 +180,6 @@ namespace Larva.MessageProcess.Processing
                     }
                 }
             }
-        }
-
-        private bool IsMailBoxAllowRemove(IProcessingMessageMailbox mailbox)
-        {
-            return mailbox.IsInactive(_timeoutSeconds) && IsMailBoxFree(mailbox);
-        }
-
-        private bool IsMailBoxFree(IProcessingMessageMailbox mailbox)
-        {
-            return !mailbox.IsRunning && mailbox.UnhandledCount == 0;
         }
     }
 }

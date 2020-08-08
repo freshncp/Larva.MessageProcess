@@ -19,14 +19,12 @@ namespace Larva.MessageProcess.Processing
         /// <param name="messageSubscriber"></param>
         /// <param name="executingContext"></param>
         /// <param name="items"></param>
-        /// <param name="continueWhenHandleFail">相同BusinessKey的消息处理失败后，是否继续推进</param>
-        public ProcessingMessage(IMessage message, string messageSubscriber, IMessageExecutingContext executingContext, IDictionary<string, string> items = null, bool continueWhenHandleFail = false)
+        public ProcessingMessage(IMessage message, string messageSubscriber, IMessageExecutingContext executingContext, IDictionary<string, string> items = null)
         {
             Message = message;
             MessageSubscriber = messageSubscriber;
             ExecutingContext = executingContext;
             Items = items ?? new Dictionary<string, string>();
-            ContinueWhenHandleFail = continueWhenHandleFail;
         }
 
         /// <summary>
@@ -43,11 +41,6 @@ namespace Larva.MessageProcess.Processing
         /// 执行上下文
         /// </summary>
         public IMessageExecutingContext ExecutingContext { get; private set; }
-
-        /// <summary>
-        /// 相同BusinessKey的消息处理失败后，是否继续推进
-        /// </summary>
-        public bool ContinueWhenHandleFail { get; private set; }
 
         /// <summary>
         /// 扩展项

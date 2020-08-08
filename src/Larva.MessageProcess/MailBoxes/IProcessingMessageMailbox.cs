@@ -40,13 +40,25 @@ namespace Larva.MessageProcess.Mailboxes
         long UnhandledCount { get; }
 
         /// <summary>
+        /// 未处理问题数
+        /// </summary>
+        long UnhandledProblemCount { get; }
+
+        /// <summary>
+        /// 是否空闲，作为清理的依据之一
+        /// </summary>
+        bool IsFree { get; }
+
+        /// <summary>
         /// 初始化
         /// </summary>
-        /// <param name="businessKey"></param>
-        /// <param name="messageHandler"></param>
-        /// <param name="batchSize"></param>
-        void Initialize(string businessKey, IProcessingMessageHandler messageHandler, int batchSize);
-
+        /// <param name="businessKey">业务键</param>
+        /// <param name="processingMessageHandler">消息处理器</param>
+        /// <param name="continueWhenHandleFail">相同BusinessKey的消息处理失败后，是否继续推进</param>
+        /// <param name="retryIntervalSeconds">重试间隔秒数</param>
+        /// <param name="batchSize">批量处理大小</param>
+        void Initialize(string businessKey, IProcessingMessageHandler processingMessageHandler, bool continueWhenHandleFail, int retryIntervalSeconds, int batchSize);
+        
         /// <summary>
         /// 入队
         /// </summary>
@@ -65,12 +77,6 @@ namespace Larva.MessageProcess.Mailboxes
         /// </summary>
         /// <param name="consumingSequence"></param>
         void ResetConsumingSequence(long consumingSequence);
-
-        /// <summary>
-        /// 尝试运行
-        /// </summary>
-        /// <returns></returns>
-        bool TryRun();
 
         /// <summary>
         /// 是否未激活

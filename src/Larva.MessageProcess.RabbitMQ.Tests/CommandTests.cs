@@ -19,7 +19,7 @@ namespace Larva.MessageProcess.RabbitMQ.Tests
             consumer.Initialize(new ConsumerSettings
             {
                 AmqpUri = new Uri("amqp://demo:123456@localhost/test")
-            }, "MessageProcess_CommandTopic", 4, new IInterceptor[] { new PerformanceCounterInterceptor() }, typeof(CommandTests).Assembly);
+            }, "MessageProcess_CommandTopic", 4, 5, new IInterceptor[] { new PerformanceCounterInterceptor() }, typeof(CommandTests).Assembly);
             consumer.Start();
 
             var commandBus = new CommandBus();

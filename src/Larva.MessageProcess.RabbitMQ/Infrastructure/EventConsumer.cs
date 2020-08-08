@@ -20,7 +20,7 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
         private string _subscriber;
         private ILogger _logger = LoggerManager.GetLogger(typeof(EventConsumer));
 
-        public void Initialize(ConsumerSettings consumerSettings, string topic, int queueCount, IInterceptor[] interceptors, params Assembly[] assemblies)
+        public void Initialize(ConsumerSettings consumerSettings, string topic, int queueCount, int retryIntervalSeconds, IInterceptor[] interceptors, params Assembly[] assemblies)
         {
             _consumer = new Consumer(consumerSettings);
             _consumer.Subscribe(topic, queueCount);
@@ -30,7 +30,7 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
             var processingMessageHandler = new DefaultProcessingMessageHandler();
             processingMessageHandler.Initialize(_eventHandlerProvider);
             _eventStreamProcessor = new DefaultMessageProcessor();
-            _eventStreamProcessor.Initialize(processingMessageHandler);
+            _eventStreamProcessor.Initialize(processingMessageHandler, false, retryIntervalSeconds);
         }
 
         public void Start()
@@ -58,7 +58,7 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
                         }
                     }
                     var messageGroup = new MessageGroup(eventStreamMessage.Id, eventStreamMessage.Timestamp, eventStreamMessage.BusinessKey, eventStreamMessage.ExtraDatas, messages, true);
-                    var processingCommand = new ProcessingMessage(messageGroup, _subscriber, new EventExecutingContext(_logger, e.Context), eventStreamMessage.ExtraDatas, false);
+                    var processingCommand = new ProcessingMessage(messageGroup, _subscriber, new EventExecutingContext(_logger, e.Context), eventStreamMessage.ExtraDatas);
                     _eventStreamProcessor.Process(processingCommand);
                 }
                 catch (Exception ex)

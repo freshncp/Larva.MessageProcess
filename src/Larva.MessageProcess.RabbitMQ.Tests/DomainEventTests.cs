@@ -18,7 +18,7 @@ namespace Larva.MessageProcess.RabbitMQ.Tests
             consumer1.Initialize(new ConsumerSettings
             {
                 AmqpUri = new Uri("amqp://demo:123456@localhost/test")
-            }, "MessageProcess_EventTopic", 4, null, typeof(DomainEventTests).Assembly);
+            }, "MessageProcess_EventTopic", 4, 5, null, typeof(DomainEventTests).Assembly);
             consumer1.Start();
 
             var consumer2 = new EventConsumer();
@@ -26,7 +26,7 @@ namespace Larva.MessageProcess.RabbitMQ.Tests
             {
                 AmqpUri = new Uri("amqp://demo:123456@localhost/test"),
                 GroupName = "Subscriber2"
-            }, "MessageProcess_EventTopic", 4, null, typeof(DomainEventTests).Assembly);
+            }, "MessageProcess_EventTopic", 4, 5, null, typeof(DomainEventTests).Assembly);
             consumer2.Start();
 
             var eventBus = new EventBus();
@@ -35,9 +35,9 @@ namespace Larva.MessageProcess.RabbitMQ.Tests
                 AmqpUri = new Uri("amqp://demo:123456@localhost/test")
             }, "MessageProcess_EventTopic");
             eventBus.Start();
-            for (var i = 1; i <= 5; i++)
+            for (var i = 1; i <= 10; i++)
             {
-                for (var j = 1; j <= 2; j++)
+                for (var j = 1; j <= 10; j++)
                 {
                     eventBus.PublishAsync(new DomainEvent1($"Test{i}")).Wait();
                 }

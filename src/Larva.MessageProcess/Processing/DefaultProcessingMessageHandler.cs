@@ -2,7 +2,6 @@
 using Larva.MessageProcess.Handling.AutoIdempotent;
 using Larva.MessageProcess.Messaging;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -15,17 +14,15 @@ namespace Larva.MessageProcess.Processing
     /// </summary>
     public class DefaultProcessingMessageHandler : IProcessingMessageHandler
     {
+        private readonly ILogger _logger;
         private volatile int _initialized;
         private IMessageHandlerProvider _messageHandlerProvider;
-        private ConcurrentDictionary<string, string> _problemBusinessKeys;
-        private readonly ILogger _logger;
 
         /// <summary>
         /// 处理中消息的处理器
         /// </summary>
         public DefaultProcessingMessageHandler()
         {
-            _problemBusinessKeys = new ConcurrentDictionary<string, string>();
             _logger = LoggerManager.GetLogger(GetType());
         }
 
@@ -46,42 +43,30 @@ namespace Larva.MessageProcess.Processing
         /// </summary>
         /// <param name="processingMessage">处理中消息</param>
         /// <returns></returns>
-        public async Task HandleAsync(ProcessingMessage processingMessage)
+        public async Task<bool> HandleAsync(ProcessingMessage processingMessage)
         {
             var message = processingMessage.Message;
             var messageTypeName = message.GetMessageTypeName();
 
-            if (string.IsNullOrEmpty(message.BusinessKey))
-            {
-                var errorMessage = string.Format("The businessKey of message cannot be null or empty. messageType:{0}, messageId:{1}", messageTypeName, message.Id);
-                await CompleteMessageAsync(processingMessage, MessageExecutingStatus.Failed, typeof(string).FullName, errorMessage).ConfigureAwait(false);
-                return;
-            }
-            if (!processingMessage.ContinueWhenHandleFail && _problemBusinessKeys.ContainsKey(processingMessage.Message.BusinessKey))
-            {
-                var lastMessageId = _problemBusinessKeys[processingMessage.Message.BusinessKey];
-                var errorMessage = string.Format("The last message with same business key, handle fail. messageType:{0}, messageId:{1}, businessKey:{2}, last messageId:{3}", messageTypeName, message.Id, message.BusinessKey, lastMessageId);
-                await CompleteMessageAsync(processingMessage, MessageExecutingStatus.Failed, typeof(string).FullName, errorMessage).ConfigureAwait(false);
-                return;
-            }
-
             var findResult = GetMessageHandler(processingMessage, out IDictionary<IMessage, IEnumerable<IMessageHandlerProxy>> messageHandlerProxyDict);
             if (findResult == HandlerFindResult.Found)
             {
-                await HandleInternal(processingMessage, messageHandlerProxyDict).ConfigureAwait(false);
+                return await HandleInternal(processingMessage, messageHandlerProxyDict).ConfigureAwait(false);
             }
             else if (findResult == HandlerFindResult.NotFound)
             {
                 var warnMessage = string.Format("No message handler found of message. messageType:{0}, messageId:{1}", messageTypeName, message.Id);
                 await CompleteMessageAsync(processingMessage, MessageExecutingStatus.HandlerNotFound, typeof(string).FullName, warnMessage).ConfigureAwait(false);
+                return true;
             }
-            else if (findResult == HandlerFindResult.NoMessage)
+            else
             {
                 await CompleteMessageAsync(processingMessage, MessageExecutingStatus.Success, string.Empty, string.Empty).ConfigureAwait(false);
+                return true;
             }
         }
 
-        private async Task HandleInternal(ProcessingMessage processingMessage, IDictionary<IMessage, IEnumerable<IMessageHandlerProxy>> messageHandlerProxyDict)
+        private async Task<bool> HandleInternal(ProcessingMessage processingMessage, IDictionary<IMessage, IEnumerable<IMessageHandlerProxy>> messageHandlerProxyDict)
         {
             try
             {
@@ -100,21 +85,20 @@ namespace Larva.MessageProcess.Processing
                         }
                     }
                 }
+
                 var result = processingMessage.ExecutingContext.GetResult();
                 await CompleteMessageAsync(processingMessage, MessageExecutingStatus.Success, typeof(string).FullName, result).ConfigureAwait(false);
+                return true;
             }
             catch (Exception ex)
             {
                 await HandleExceptionAsync(processingMessage, ex, ex.Message).ConfigureAwait(false);
+                return false;
             }
         }
 
         private async Task HandleExceptionAsync(ProcessingMessage processingMessage, Exception exception, string errorMessage)
         {
-            if (!processingMessage.ContinueWhenHandleFail)
-            {
-                _problemBusinessKeys.TryAdd(processingMessage.Message.BusinessKey, processingMessage.Message.Id);
-            }
             var realException = GetRealException(exception);
             await CompleteMessageAsync(processingMessage, MessageExecutingStatus.Failed, realException.GetType().FullName, realException != null ? realException.Message : errorMessage, realException != null ? realException.StackTrace : string.Empty).ConfigureAwait(false);
         }

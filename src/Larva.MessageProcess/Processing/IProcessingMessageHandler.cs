@@ -12,6 +12,6 @@ namespace Larva.MessageProcess.Processing
         /// </summary>
         /// <param name="processingMessage"></param>
         /// <returns></returns>
-        Task HandleAsync(ProcessingMessage processingMessage);
+        Task<bool> HandleAsync(ProcessingMessage processingMessage);
     }
 }

@@ -18,7 +18,7 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
         private Consumer _consumer;
         private ILogger _logger = LoggerManager.GetLogger(typeof(CommandConsumer));
 
-        public void Initialize(ConsumerSettings consumerSettings, string topic, int queueCount, IInterceptor[] interceptors, params Assembly[] assemblies)
+        public void Initialize(ConsumerSettings consumerSettings, string topic, int queueCount, int retryIntervalSeconds, IInterceptor[] interceptors, params Assembly[] assemblies)
         {
             _consumer = new Consumer(consumerSettings);
             _consumer.Subscribe(topic, queueCount);
@@ -27,7 +27,7 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
             var processingMessageHandler = new DefaultProcessingMessageHandler();
             processingMessageHandler.Initialize(_commandHandlerProvider);
             _commandProcessor = new DefaultMessageProcessor();
-            _commandProcessor.Initialize(processingMessageHandler);
+            _commandProcessor.Initialize(processingMessageHandler, true, retryIntervalSeconds);
         }
 
         public void Start()
@@ -48,7 +48,7 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
                     var messageType = messageTypes[commandMessage.CommandTypeName];
                     var command = (ICommand)JsonConvert.DeserializeObject(commandMessage.CommandData, messageType);
                     command.MergeExtraDatas(commandMessage.ExtraDatas);
-                    var processingCommand = new ProcessingMessage(command, string.Empty, new CommandExecutingContext(_logger, e.Context), commandMessage.ExtraDatas, true);
+                    var processingCommand = new ProcessingMessage(command, string.Empty, new CommandExecutingContext(_logger, e.Context), commandMessage.ExtraDatas);
                     _commandProcessor.Process(processingCommand);
                 }
                 catch (Exception ex)
