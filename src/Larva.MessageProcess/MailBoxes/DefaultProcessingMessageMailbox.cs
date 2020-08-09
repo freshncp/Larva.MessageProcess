@@ -15,8 +15,8 @@ namespace Larva.MessageProcess.Mailboxes
     {
         private readonly object _lockObj = new object();
         private readonly ConcurrentDictionary<long, ProcessingMessage> _processingMessageDict;
-        private readonly ConcurrentQueue<ProcessingMessage> _problemProcessingMessages;
-        private readonly ConcurrentDictionary<long, ProcessingMessage> _problemProcessingMessages2;
+        private readonly ConcurrentQueue<ProcessingMessageWithCreatedTime> _problemProcessingMessages;
+        private readonly ConcurrentDictionary<long, ProcessingMessageWithCreatedTime> _problemProcessingMessages2;
         private readonly ILogger _logger;
         private IProcessingMessageHandler _processingMessageHandler;
         private bool _continueWhenHandleFail;
@@ -35,8 +35,8 @@ namespace Larva.MessageProcess.Mailboxes
         public DefaultProcessingMessageMailbox()
         {
             _processingMessageDict = new ConcurrentDictionary<long, ProcessingMessage>();
-            _problemProcessingMessages = new ConcurrentQueue<ProcessingMessage>();
-            _problemProcessingMessages2 = new ConcurrentDictionary<long, ProcessingMessage>();
+            _problemProcessingMessages = new ConcurrentQueue<ProcessingMessageWithCreatedTime>();
+            _problemProcessingMessages2 = new ConcurrentDictionary<long, ProcessingMessageWithCreatedTime>();
             _logger = LoggerManager.GetLogger(GetType());
             _nextSequence = 1;
             LastActiveTime = DateTime.Now;
@@ -222,12 +222,12 @@ namespace Larva.MessageProcess.Mailboxes
                     if (processingMessage != null)
                     {
                         if (!_continueWhenHandleFail
-                            && _problemProcessingMessages.TryPeek(out ProcessingMessage firstProblemProcessingMessage))
+                            && _problemProcessingMessages.TryPeek(out ProcessingMessageWithCreatedTime firstProblemProcessingMessagePair))
                         {
                             var message = processingMessage.Message;
                             var messageTypeName = message.GetMessageTypeName();
-                            _problemProcessingMessages.Enqueue(processingMessage);
-                            var lastMessageId = firstProblemProcessingMessage.Message.Id;
+                            _problemProcessingMessages.Enqueue(new ProcessingMessageWithCreatedTime(processingMessage));
+                            var lastMessageId = firstProblemProcessingMessagePair.Message.Message.Id;
                             var errorMessage = $"The last message with same business key, handle fail. businessKey: {BusinessKey}, subscriber: {Subscriber}, messageId: {message.Id}, messageType: {messageTypeName}, last messageId: {lastMessageId}";
                             await CompleteMessageAsync(processingMessage, MessageExecutingStatus.Failed, typeof(string).FullName, errorMessage).ConfigureAwait(false);
                             continue;
@@ -238,11 +238,11 @@ namespace Larva.MessageProcess.Mailboxes
                         {
                             if (_continueWhenHandleFail)
                             {
-                                _problemProcessingMessages2.TryAdd(processingMessage.Sequence, processingMessage);
+                                _problemProcessingMessages2.TryAdd(processingMessage.Sequence, new ProcessingMessageWithCreatedTime(processingMessage));
                             }
                             else
                             {
-                                _problemProcessingMessages.Enqueue(processingMessage);
+                                _problemProcessingMessages.Enqueue(new ProcessingMessageWithCreatedTime(processingMessage));
                             }
                         }
                     }
@@ -257,12 +257,17 @@ namespace Larva.MessageProcess.Mailboxes
 
         private void ProcessProblemMessage()
         {
-            Task.Delay(_retryIntervalSeconds * 1000).ContinueWith(async (lastTask, state) =>
+            Task.Delay(Math.Min(10, _retryIntervalSeconds) * 1000).ContinueWith(async (lastTask, state) =>
             {
                 if (Interlocked.CompareExchange(ref _isHandlingProblemMessage, 1, 0) == 0)
                 {
                     try
                     {
+                        if (_isRunning == 1)
+                        {
+                            // 暂停3秒，等待 ProcessMessage 完成，此处为提高处理问题消息的抢占概率
+                            await Task.Delay(1000);
+                        }
                         if (_isRunning == 1)
                         {
                             return;
@@ -271,31 +276,46 @@ namespace Larva.MessageProcess.Mailboxes
                         {
                             foreach (var sequence in _problemProcessingMessages2.Keys.OrderBy(o => o).ToArray())
                             {
-                                var processingMessage = _problemProcessingMessages2[sequence];
+                                var processingMessagePair = _problemProcessingMessages2[sequence];
+                                if (!processingMessagePair.CanRetry(_retryIntervalSeconds))
+                                {
+                                    continue;
+                                }
+                                var processingMessage = processingMessagePair.Message;
                                 var message = processingMessage.Message;
                                 var messageTypeName = message.GetMessageTypeName();
                                 var processSuccess = await _processingMessageHandler.HandleAsync(processingMessage).ConfigureAwait(false);
                                 if (processSuccess)
                                 {
-                                    _problemProcessingMessages2.TryRemove(sequence, out ProcessingMessage _);
+                                    _problemProcessingMessages2.TryRemove(sequence, out ProcessingMessageWithCreatedTime _);
                                     _logger.Info($"Last failed message retry success, businessKey: {BusinessKey}, subscriber: {Subscriber}, messageId: {message.Id}, messageType: {messageTypeName}");
+                                }
+                                else
+                                {
+                                    processingMessagePair.ResetCreatedTime();
                                 }
                             }
                         }
                         else
                         {
-                            while (_problemProcessingMessages.TryPeek(out ProcessingMessage processingMessage))
+                            while (_problemProcessingMessages.TryPeek(out ProcessingMessageWithCreatedTime processingMessagePair))
                             {
+                                if (!processingMessagePair.CanRetry(_retryIntervalSeconds))
+                                {
+                                    break;
+                                }
+                                var processingMessage = processingMessagePair.Message;
                                 var message = processingMessage.Message;
                                 var messageTypeName = message.GetMessageTypeName();
                                 var processSuccess = await _processingMessageHandler.HandleAsync(processingMessage).ConfigureAwait(false);
                                 if (processSuccess)
                                 {
-                                    _problemProcessingMessages.TryDequeue(out ProcessingMessage _);
+                                    _problemProcessingMessages.TryDequeue(out ProcessingMessageWithCreatedTime _);
                                     _logger.Info($"Last failed message retry success, businessKey: {BusinessKey}, subscriber: {Subscriber}, messageId: {message.Id}, messageType: {messageTypeName}");
                                 }
                                 else
                                 {
+                                    processingMessagePair.ResetCreatedTime();
                                     break;
                                 }
                             }
@@ -327,6 +347,28 @@ namespace Larva.MessageProcess.Mailboxes
         {
             var commandResult = new MessageExecutingResult(commandStatus, processingMessage.Message, Subscriber, result, resultType, stackTrace);
             await processingMessage.CompleteAsync(commandResult).ConfigureAwait(false);
+        }
+
+        private class ProcessingMessageWithCreatedTime
+        {
+            public ProcessingMessageWithCreatedTime(ProcessingMessage message)
+            {
+                Message = message;
+                CreatedTime = DateTime.Now;
+            }
+            public ProcessingMessage Message { get; private set; }
+
+            public DateTime CreatedTime { get; private set; }
+
+            public void ResetCreatedTime()
+            {
+                CreatedTime = DateTime.Now;
+            }
+
+            public bool CanRetry(int retryIntervalSeconds)
+            {
+                return CreatedTime.AddSeconds(retryIntervalSeconds) <= DateTime.Now;
+            }
         }
     }
 }
