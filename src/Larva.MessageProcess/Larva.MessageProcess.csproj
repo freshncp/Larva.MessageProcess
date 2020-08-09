@@ -13,7 +13,7 @@
     <Title>Larva.MessageProcess</Title>
     <Version>1.2.0</Version>
     <PackageTags>parallel serial message mq message-process concurrent</PackageTags>
-    <Description>Message processing。不同业务键并行处理，相同业务键串行处理。</Description>
+    <Description>Message processing framework. Parallel when different business key, serial when the same one.</Description>
     <PackageIcon>_content\package.png</PackageIcon>
     <IncludeContentInPack>true</IncludeContentInPack>
     <ContentTargetFolders>_content</ContentTargetFolders>
