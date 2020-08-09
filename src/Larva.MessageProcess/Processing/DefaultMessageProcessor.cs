@@ -16,6 +16,7 @@ namespace Larva.MessageProcess.Processing
         private readonly Timer _cleanInactiveMailboxTimer;
         private volatile int _initialized;
         private volatile int _isRunning;
+        private string _subscriber;
         private IProcessingMessageHandler _handler;
         private bool _continueWhenHandleFail;
         private int _retryIntervalSeconds;
@@ -36,6 +37,7 @@ namespace Larva.MessageProcess.Processing
         /// <summary>
         /// 初始化
         /// </summary>
+        /// <param name="subscriber">订阅者</param>
         /// <param name="handler"></param>
         /// <param name="continueWhenHandleFail">相同BusinessKey的消息处理失败后，是否继续推进</param>
         /// <param name="retryIntervalSeconds">重试间隔秒数</param>
@@ -43,6 +45,7 @@ namespace Larva.MessageProcess.Processing
         /// <param name="cleanInactiveMailboxIntervalSeconds">清理未激活邮箱间隔秒数</param>
         /// <param name="batchSize">批量处理大小</param>
         public void Initialize(
+            string subscriber,
             IProcessingMessageHandler handler,
             bool continueWhenHandleFail,
             int retryIntervalSeconds,
@@ -52,6 +55,7 @@ namespace Larva.MessageProcess.Processing
         {
             if (Interlocked.CompareExchange(ref _initialized, 1, 0) == 0)
             {
+                _subscriber = subscriber;
                 _handler = handler;
                 _continueWhenHandleFail = continueWhenHandleFail;
                 _retryIntervalSeconds = retryIntervalSeconds;
@@ -77,7 +81,7 @@ namespace Larva.MessageProcess.Processing
             var mailbox = _mailboxDict.GetOrAdd(businessKey, x =>
             {
                 var newMailBox = (IProcessingMessageMailbox)ObjectContainer.Resolve(typeof(IProcessingMessageMailbox), typeof(DefaultProcessingMessageMailbox));
-                newMailBox.Initialize(x, _handler, _continueWhenHandleFail, _retryIntervalSeconds, _batchSize);
+                newMailBox.Initialize(x, _subscriber, _handler, _continueWhenHandleFail, _retryIntervalSeconds, _batchSize);
                 return newMailBox;
             });
 
@@ -88,7 +92,7 @@ namespace Larva.MessageProcess.Processing
                 if (mailbox.IsRemoved)
                 {
                     mailbox = (IProcessingMessageMailbox)ObjectContainer.Resolve(typeof(IProcessingMessageMailbox), typeof(DefaultProcessingMessageMailbox));
-                    mailbox.Initialize(businessKey, _handler, _continueWhenHandleFail, _retryIntervalSeconds, _batchSize);
+                    mailbox.Initialize(businessKey, _subscriber, _handler, _continueWhenHandleFail, _retryIntervalSeconds, _batchSize);
                     _mailboxDict.TryAdd(businessKey, mailbox);
                 }
                 mailbox.Enqueue(processinMessage);

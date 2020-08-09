@@ -47,11 +47,12 @@ namespace Larva.MessageProcess.Mailboxes
         /// 初始化
         /// </summary>
         /// <param name="businessKey">业务键</param>
+        /// <param name="subscriber">订阅者</param>
         /// <param name="processingMessageHandler">消息处理器</param>
         /// <param name="continueWhenHandleFail">相同BusinessKey的消息处理失败后，是否继续推进</param>
         /// <param name="retryIntervalSeconds">重试间隔秒数</param>
         /// <param name="batchSize">批量处理大小</param>
-        public void Initialize(string businessKey, IProcessingMessageHandler processingMessageHandler, bool continueWhenHandleFail, int retryIntervalSeconds, int batchSize)
+        public void Initialize(string businessKey, string subscriber, IProcessingMessageHandler processingMessageHandler, bool continueWhenHandleFail, int retryIntervalSeconds, int batchSize)
         {
             if (string.IsNullOrEmpty(businessKey))
             {
@@ -60,6 +61,7 @@ namespace Larva.MessageProcess.Mailboxes
             if (Interlocked.CompareExchange(ref _initialized, 1, 0) == 0)
             {
                 BusinessKey = businessKey;
+                Subscriber = subscriber;
                 _processingMessageHandler = processingMessageHandler;
                 _continueWhenHandleFail = continueWhenHandleFail;
                 _retryIntervalSeconds = retryIntervalSeconds <= 0 ? 1 : retryIntervalSeconds;
@@ -72,6 +74,11 @@ namespace Larva.MessageProcess.Mailboxes
         /// 业务键
         /// </summary>
         public string BusinessKey { get; private set; }
+
+        /// <summary>
+        /// 订阅者
+        /// </summary>
+        public string Subscriber { get; private set; }
 
         /// <summary>
         /// 最后一次激活时间，作为清理的依据之一
@@ -124,7 +131,7 @@ namespace Larva.MessageProcess.Mailboxes
             }
             if (processingMessage.Message.BusinessKey != BusinessKey)
             {
-                throw new InvalidOperationException($"Message's business key \"{processingMessage.Message.BusinessKey}\" is not equal with mailbox's, businessKey: {BusinessKey}, messageId: {processingMessage.Message.Id}, messageType: {processingMessage.Message.GetMessageTypeName()}, timestamp: {processingMessage.Message.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")}.");
+                throw new InvalidOperationException($"Message's business key \"{processingMessage.Message.BusinessKey}\" is not equal with mailbox's, businessKey: {BusinessKey}, subscriber: {Subscriber}, messageId: {processingMessage.Message.Id}, messageType: {processingMessage.Message.GetMessageTypeName()}, timestamp: {processingMessage.Message.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")}.");
             }
             lock (_lockObj)
             {
@@ -137,7 +144,7 @@ namespace Larva.MessageProcess.Mailboxes
                 }
                 else
                 {
-                    _logger.Error($"{GetType().Name} enqueue message failed, businessKey: {BusinessKey}, messageId: {processingMessage.Message.Id}, messageType: {processingMessage.Message.GetMessageTypeName()}, messageSequence: {processingMessage.Sequence}");
+                    _logger.Error($"{GetType().Name} enqueue message failed, businessKey: {BusinessKey}, subscriber: {Subscriber}, messageId: {processingMessage.Message.Id}, messageType: {processingMessage.Message.GetMessageTypeName()}, messageSequence: {processingMessage.Sequence}");
                 }
             }
         }
@@ -159,7 +166,7 @@ namespace Larva.MessageProcess.Mailboxes
         public void ResetConsumingSequence(long consumingSequence)
         {
             var originConsumingSequence = Interlocked.Exchange(ref _consumingSequence, consumingSequence);
-            _logger.Debug($"{GetType().FullName} reset consumingSequence, businessKey: {BusinessKey}, consumingSequence: {consumingSequence}, originConsumingSequence: {originConsumingSequence}");
+            _logger.Debug($"{GetType().FullName} reset consumingSequence, businessKey: {BusinessKey}, subscriber: {Subscriber}, consumingSequence: {consumingSequence}, originConsumingSequence: {originConsumingSequence}");
         }
 
         /// <summary>
@@ -221,7 +228,7 @@ namespace Larva.MessageProcess.Mailboxes
                             var messageTypeName = message.GetMessageTypeName();
                             _problemProcessingMessages.Enqueue(processingMessage);
                             var lastMessageId = firstProblemProcessingMessage.Message.Id;
-                            var errorMessage = string.Format("The last message with same business key, handle fail. messageType:{0}, messageId:{1}, businessKey:{2}, last messageId:{3}", messageTypeName, message.Id, message.BusinessKey, lastMessageId);
+                            var errorMessage = $"The last message with same business key, handle fail. businessKey: {BusinessKey}, subscriber: {Subscriber}, messageId: {message.Id}, messageType: {messageTypeName}, last messageId: {lastMessageId}";
                             await CompleteMessageAsync(processingMessage, MessageExecutingStatus.Failed, typeof(string).FullName, errorMessage).ConfigureAwait(false);
                             continue;
                         }
@@ -244,7 +251,7 @@ namespace Larva.MessageProcess.Mailboxes
             }
             catch (Exception ex)
             {
-                _logger.Error($"{GetType().Name} run has unknown exception, businessKey: {BusinessKey}", ex);
+                _logger.Error($"{GetType().Name} run has unknown exception, businessKey: {BusinessKey}, subscriber: {Subscriber}", ex);
             }
         }
 
@@ -265,11 +272,13 @@ namespace Larva.MessageProcess.Mailboxes
                             foreach (var sequence in _problemProcessingMessages2.Keys.OrderBy(o => o).ToArray())
                             {
                                 var processingMessage = _problemProcessingMessages2[sequence];
+                                var message = processingMessage.Message;
+                                var messageTypeName = message.GetMessageTypeName();
                                 var processSuccess = await _processingMessageHandler.HandleAsync(processingMessage).ConfigureAwait(false);
                                 if (processSuccess)
                                 {
                                     _problemProcessingMessages2.TryRemove(sequence, out ProcessingMessage _);
-                                    _logger.Info($"Message {processingMessage.Message.Id} retry success. BusinessKey={processingMessage.Message.BusinessKey}, Subscriber={processingMessage.MessageSubscriber}");
+                                    _logger.Info($"Last failed message retry success, businessKey: {BusinessKey}, subscriber: {Subscriber}, messageId: {message.Id}, messageType: {messageTypeName}");
                                 }
                             }
                         }
@@ -277,11 +286,13 @@ namespace Larva.MessageProcess.Mailboxes
                         {
                             while (_problemProcessingMessages.TryPeek(out ProcessingMessage processingMessage))
                             {
+                                var message = processingMessage.Message;
+                                var messageTypeName = message.GetMessageTypeName();
                                 var processSuccess = await _processingMessageHandler.HandleAsync(processingMessage).ConfigureAwait(false);
                                 if (processSuccess)
                                 {
                                     _problemProcessingMessages.TryDequeue(out ProcessingMessage _);
-                                    _logger.Info($"Message {processingMessage.Message.Id} retry success. BusinessKey={processingMessage.Message.BusinessKey}, Subscriber={processingMessage.MessageSubscriber}");
+                                    _logger.Info($"Last failed message retry success, businessKey: {BusinessKey}, subscriber: {Subscriber}, messageId: {message.Id}, messageType: {messageTypeName}");
                                 }
                                 else
                                 {
@@ -292,7 +303,7 @@ namespace Larva.MessageProcess.Mailboxes
                     }
                     catch (Exception ex)
                     {
-                        _logger.Error($"{GetType().Name} run has unknown exception, businessKey: {BusinessKey}", ex);
+                        _logger.Error($"{GetType().Name} run has unknown exception, businessKey: {BusinessKey}, subscriber: {Subscriber}", ex);
                     }
                     finally
                     {
@@ -314,7 +325,7 @@ namespace Larva.MessageProcess.Mailboxes
 
         private async Task CompleteMessageAsync(ProcessingMessage processingMessage, MessageExecutingStatus commandStatus, string resultType, string result, string stackTrace = null)
         {
-            var commandResult = new MessageExecutingResult(commandStatus, processingMessage.Message, processingMessage.MessageSubscriber, result, resultType, stackTrace);
+            var commandResult = new MessageExecutingResult(commandStatus, processingMessage.Message, Subscriber, result, resultType, stackTrace);
             await processingMessage.CompleteAsync(commandResult).ConfigureAwait(false);
         }
     }

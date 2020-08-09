@@ -16,13 +16,11 @@ namespace Larva.MessageProcess.Processing
         /// 处理中消息
         /// </summary>
         /// <param name="message"></param>
-        /// <param name="messageSubscriber"></param>
         /// <param name="executingContext"></param>
         /// <param name="items"></param>
-        public ProcessingMessage(IMessage message, string messageSubscriber, IMessageExecutingContext executingContext, IDictionary<string, string> items = null)
+        public ProcessingMessage(IMessage message, IMessageExecutingContext executingContext, IDictionary<string, string> items = null)
         {
             Message = message;
-            MessageSubscriber = messageSubscriber;
             ExecutingContext = executingContext;
             Items = items ?? new Dictionary<string, string>();
         }
@@ -31,11 +29,6 @@ namespace Larva.MessageProcess.Processing
         /// 消息
         /// </summary>
         public IMessage Message { get; private set; }
-
-        /// <summary>
-        /// 消息订阅者
-        /// </summary>
-        public string MessageSubscriber { get; private set; }
 
         /// <summary>
         /// 执行上下文

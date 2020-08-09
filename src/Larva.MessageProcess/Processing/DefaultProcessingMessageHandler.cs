@@ -16,6 +16,7 @@ namespace Larva.MessageProcess.Processing
     {
         private readonly ILogger _logger;
         private volatile int _initialized;
+        private string _subscriber;
         private IMessageHandlerProvider _messageHandlerProvider;
 
         /// <summary>
@@ -29,11 +30,13 @@ namespace Larva.MessageProcess.Processing
         /// <summary>
         /// 初始化
         /// </summary>
+        /// <param name="subscriber">订阅者</param>
         /// <param name="messageHandlerProvider">消息处理器提供者</param>
-        public void Initialize(IMessageHandlerProvider messageHandlerProvider)
+        public void Initialize(string subscriber, IMessageHandlerProvider messageHandlerProvider)
         {
             if (Interlocked.CompareExchange(ref _initialized, 1, 0) == 0)
             {
+                _subscriber = subscriber;
                 _messageHandlerProvider = messageHandlerProvider;
             }
         }
@@ -55,7 +58,7 @@ namespace Larva.MessageProcess.Processing
             }
             else if (findResult == HandlerFindResult.NotFound)
             {
-                var warnMessage = string.Format("No message handler found of message. messageType:{0}, messageId:{1}", messageTypeName, message.Id);
+                var warnMessage = $"No message handler found of message, businessKey: {message.BusinessKey}, subscriber: {_subscriber}, messageId: {message.Id}, messageType: {messageTypeName}";
                 await CompleteMessageAsync(processingMessage, MessageExecutingStatus.HandlerNotFound, typeof(string).FullName, warnMessage).ConfigureAwait(false);
                 return true;
             }
@@ -125,8 +128,7 @@ namespace Larva.MessageProcess.Processing
                 foreach (var message in messageGroup.Messages)
                 {
                     var messageType = message.GetType();
-                    var subscriber = processingMessage.MessageSubscriber;
-                    var handlerProxyList = _messageHandlerProvider.GetHandlers(messageType, subscriber);
+                    var handlerProxyList = _messageHandlerProvider.GetHandlers(messageType, _subscriber);
                     if (handlerProxyList != null && handlerProxyList.Any())
                     {
                         messageHandlerProxyDict.Add(message, handlerProxyList);
@@ -142,8 +144,7 @@ namespace Larva.MessageProcess.Processing
             else
             {
                 var messageType = processingMessage.Message.GetType();
-                var subscriber = processingMessage.MessageSubscriber;
-                var handlerProxyList = _messageHandlerProvider.GetHandlers(messageType, subscriber);
+                var handlerProxyList = _messageHandlerProvider.GetHandlers(messageType, _subscriber);
                 if (handlerProxyList == null || handlerProxyList.Count() == 0)
                 {
                     return HandlerFindResult.NotFound;
@@ -158,7 +159,7 @@ namespace Larva.MessageProcess.Processing
 
         private async Task CompleteMessageAsync(ProcessingMessage processingMessage, MessageExecutingStatus commandStatus, string resultType, string result, string stackTrace = null)
         {
-            var commandResult = new MessageExecutingResult(commandStatus, processingMessage.Message, processingMessage.MessageSubscriber, result, resultType, stackTrace);
+            var commandResult = new MessageExecutingResult(commandStatus, processingMessage.Message, _subscriber, result, resultType, stackTrace);
             await processingMessage.CompleteAsync(commandResult).ConfigureAwait(false);
         }
 

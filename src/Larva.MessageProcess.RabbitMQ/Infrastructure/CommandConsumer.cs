@@ -25,9 +25,9 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
             _commandHandlerProvider = new CommandHandlerProvider();
             _commandHandlerProvider.Initialize(interceptors, assemblies);
             var processingMessageHandler = new DefaultProcessingMessageHandler();
-            processingMessageHandler.Initialize(_commandHandlerProvider);
+            processingMessageHandler.Initialize(string.Empty, _commandHandlerProvider);
             _commandProcessor = new DefaultMessageProcessor();
-            _commandProcessor.Initialize(processingMessageHandler, true, retryIntervalSeconds);
+            _commandProcessor.Initialize(string.Empty, processingMessageHandler, true, retryIntervalSeconds);
         }
 
         public void Start()
@@ -48,7 +48,7 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
                     var messageType = messageTypes[commandMessage.CommandTypeName];
                     var command = (ICommand)JsonConvert.DeserializeObject(commandMessage.CommandData, messageType);
                     command.MergeExtraDatas(commandMessage.ExtraDatas);
-                    var processingCommand = new ProcessingMessage(command, string.Empty, new CommandExecutingContext(_logger, e.Context), commandMessage.ExtraDatas);
+                    var processingCommand = new ProcessingMessage(command, new CommandExecutingContext(_logger, e.Context), commandMessage.ExtraDatas);
                     _commandProcessor.Process(processingCommand);
                 }
                 catch (Exception ex)

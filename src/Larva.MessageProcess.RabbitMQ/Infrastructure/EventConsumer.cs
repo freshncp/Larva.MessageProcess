@@ -28,9 +28,9 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
             _eventHandlerProvider = new EventHandlerProvider();
             _eventHandlerProvider.Initialize(interceptors, assemblies);
             var processingMessageHandler = new DefaultProcessingMessageHandler();
-            processingMessageHandler.Initialize(_eventHandlerProvider);
+            processingMessageHandler.Initialize(_subscriber, _eventHandlerProvider);
             _eventStreamProcessor = new DefaultMessageProcessor();
-            _eventStreamProcessor.Initialize(processingMessageHandler, false, retryIntervalSeconds);
+            _eventStreamProcessor.Initialize(_subscriber, processingMessageHandler, false, retryIntervalSeconds);
         }
 
         public void Start()
@@ -58,7 +58,7 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
                         }
                     }
                     var messageGroup = new MessageGroup(eventStreamMessage.Id, eventStreamMessage.Timestamp, eventStreamMessage.BusinessKey, eventStreamMessage.ExtraDatas, messages, true);
-                    var processingCommand = new ProcessingMessage(messageGroup, _subscriber, new EventExecutingContext(_logger, e.Context), eventStreamMessage.ExtraDatas);
+                    var processingCommand = new ProcessingMessage(messageGroup, new EventExecutingContext(_logger, e.Context), eventStreamMessage.ExtraDatas);
                     _eventStreamProcessor.Process(processingCommand);
                 }
                 catch (Exception ex)

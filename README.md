@@ -73,9 +73,9 @@ public class CommandConsumer
         _commandHandlerProvider = new CommandHandlerProvider();
         _commandHandlerProvider.Initialize(interceptors, assemblies);
         var processingMessageHandler = new DefaultProcessingMessageHandler();
-        processingMessageHandler.Initialize(_commandHandlerProvider);
+        processingMessageHandler.Initialize(string.Empty, _commandHandlerProvider);
         _commandProcessor = new DefaultMessageProcessor();
-        _commandProcessor.Initialize(processingMessageHandler, true, retryIntervalSeconds);
+        _commandProcessor.Initialize(string.Empty, processingMessageHandler, true, retryIntervalSeconds);
     }
 
     public void Start()
@@ -96,7 +96,7 @@ public class CommandConsumer
                 var messageType = messageTypes[commandMessage.CommandTypeName];
                 var command = (ICommand)JsonConvert.DeserializeObject(commandMessage.CommandData, messageType);
                 command.MergeExtraDatas(commandMessage.ExtraDatas);
-                var processingCommand = new ProcessingMessage(command, string.Empty, new CommandExecutingContext(_logger, e.Context), commandMessage.ExtraDatas);
+                var processingCommand = new ProcessingMessage(command, new CommandExecutingContext(_logger, e.Context), commandMessage.ExtraDatas);
                 _commandProcessor.Process(processingCommand);
             }
             catch (Exception ex)
@@ -155,11 +155,11 @@ public class CommandConsumer
 
 ## 发布历史
 
-### 1.2.0 （更新日期：2020/8/8）
+### 1.2.0 （更新日期：2020/8/9）
 
 ```plain
 1）支持消息消费失败自动重试，重试间隔以秒计（失败不一定是业务代码bug造成）；
-2）相同 `BusinessKey` 的消息，如果处理失败，默认此类消息不会继续处理，必须前面的消息处理完才可以继续，此逻辑由IProcessingMessageHandler转到IProcessingMessageMailbox。
+2）ProcessingMessage的属性ContinueWhenHandleFail、MessageSubscriber，转为IProcessingMessageHandler、IMessageProcessor的初始化参数。
 ```
 
 ### 1.1.1 （更新日期：2020/7/12）

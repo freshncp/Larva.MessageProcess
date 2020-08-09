@@ -16,10 +16,10 @@ namespace Larva.MessageProcess.Tests.Mailboxes
         public void InitializeWithEmptyBusinessKeyIsNotAllowed()
         {
             IProcessingMessageMailbox mailbox = new DefaultProcessingMessageMailbox();
-            var processingMessageHandler = new MockupProcessingMessageHandler();
+            var processingMessageHandler = new MockupProcessingMessageHandler("");
             Assert.Throws<ArgumentNullException>(() =>
             {
-                mailbox.Initialize("", processingMessageHandler, false, 1, 2);
+                mailbox.Initialize("", "", processingMessageHandler, false, 1, 2);
             });
         }
 
@@ -27,8 +27,8 @@ namespace Larva.MessageProcess.Tests.Mailboxes
         public void EnqueueNullIsNotAllowed()
         {
             IProcessingMessageMailbox mailbox = new DefaultProcessingMessageMailbox();
-            var processingMessageHandler = new MockupProcessingMessageHandler();
-            mailbox.Initialize("B001", processingMessageHandler, false, 1, 2);
+            var processingMessageHandler = new MockupProcessingMessageHandler("");
+            mailbox.Initialize("B001", "", processingMessageHandler, false, 1, 2);
             Assert.Throws<ArgumentNullException>(() =>
             {
                 mailbox.Enqueue(null);
@@ -39,11 +39,11 @@ namespace Larva.MessageProcess.Tests.Mailboxes
         public void EnqueueDifferentBussinessKeyIsNotAllowed()
         {
             IProcessingMessageMailbox mailbox = new DefaultProcessingMessageMailbox();
-            var processingMessageHandler = new MockupProcessingMessageHandler();
-            mailbox.Initialize("B001", processingMessageHandler, false, 1, 2);
+            var processingMessageHandler = new MockupProcessingMessageHandler("");
+            mailbox.Initialize("B001", "", processingMessageHandler, false, 1, 2);
             Assert.Throws<InvalidOperationException>(() =>
             {
-                mailbox.Enqueue(new ProcessingMessage(new MessageA { Id = "1", Timestamp = DateTime.Now, BusinessKey = "B002" }, string.Empty, new MockupMessageExecutingContext()));
+                mailbox.Enqueue(new ProcessingMessage(new MessageA { Id = "1", Timestamp = DateTime.Now, BusinessKey = "B002" }, new MockupMessageExecutingContext()));
             });
         }
 
@@ -51,12 +51,12 @@ namespace Larva.MessageProcess.Tests.Mailboxes
         public void MustSequentialProcessing()
         {
             IProcessingMessageMailbox mailbox = new DefaultProcessingMessageMailbox();
-            var processingMessageHandler = new MockupProcessingMessageHandler();
-            mailbox.Initialize("B001", processingMessageHandler, false, 1, 5);
+            var processingMessageHandler = new MockupProcessingMessageHandler("");
+            mailbox.Initialize("B001", "", processingMessageHandler, false, 1, 5);
             var testCount = 20;
             for (var i = 0; i < testCount; i++)
             {
-                mailbox.Enqueue(new ProcessingMessage(new MessageA { Id = $"M{i + 1}", Timestamp = DateTime.Now, BusinessKey = "B001" }, string.Empty, new MockupMessageExecutingContext()));
+                mailbox.Enqueue(new ProcessingMessage(new MessageA { Id = $"M{i + 1}", Timestamp = DateTime.Now, BusinessKey = "B001" }, new MockupMessageExecutingContext()));
             }
             var processedMessages = processingMessageHandler.GetProcessedMessages();
             while (processedMessages.Length < testCount)
@@ -95,7 +95,7 @@ namespace Larva.MessageProcess.Tests.Mailboxes
             }
 
             public async Task NotifyMessageExecutedAsync(MessageExecutingResult messageResult)
-            {   
+            {
                 await Task.Delay(10);
             }
 
@@ -107,12 +107,19 @@ namespace Larva.MessageProcess.Tests.Mailboxes
 
         public class MockupProcessingMessageHandler : IProcessingMessageHandler
         {
+            private string _subscriber;
             private ConcurrentQueue<ProcessingMessage> _queue = new ConcurrentQueue<ProcessingMessage>();
+
+            public MockupProcessingMessageHandler(string subscriber)
+            {
+                _subscriber = subscriber;
+            }
+
             public async Task<bool> HandleAsync(ProcessingMessage processingMessage)
             {
                 _queue.Enqueue(processingMessage);
                 await Task.Delay(10);
-                await processingMessage.CompleteAsync(new MessageExecutingResult(MessageExecutingStatus.Success, processingMessage.Message, processingMessage.MessageSubscriber));
+                await processingMessage.CompleteAsync(new MessageExecutingResult(MessageExecutingStatus.Success, processingMessage.Message, _subscriber));
                 return true;
             }
 

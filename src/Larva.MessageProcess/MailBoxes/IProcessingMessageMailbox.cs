@@ -15,6 +15,11 @@ namespace Larva.MessageProcess.Mailboxes
         string BusinessKey { get; }
 
         /// <summary>
+        /// 订阅者
+        /// </summary>
+        string Subscriber { get; }
+
+        /// <summary>
         /// 最后一次激活时间，作为清理的依据之一
         /// </summary>
         DateTime LastActiveTime { get; }
@@ -53,11 +58,12 @@ namespace Larva.MessageProcess.Mailboxes
         /// 初始化
         /// </summary>
         /// <param name="businessKey">业务键</param>
+        /// <param name="subscriber">订阅者</param>
         /// <param name="processingMessageHandler">消息处理器</param>
         /// <param name="continueWhenHandleFail">相同BusinessKey的消息处理失败后，是否继续推进</param>
         /// <param name="retryIntervalSeconds">重试间隔秒数</param>
         /// <param name="batchSize">批量处理大小</param>
-        void Initialize(string businessKey, IProcessingMessageHandler processingMessageHandler, bool continueWhenHandleFail, int retryIntervalSeconds, int batchSize);
+        void Initialize(string businessKey, string subscriber, IProcessingMessageHandler processingMessageHandler, bool continueWhenHandleFail, int retryIntervalSeconds, int batchSize);
         
         /// <summary>
         /// 入队
