@@ -2,6 +2,7 @@ using log4net;
 using Larva.DynamicProxy.Interception;
 using Larva.MessageProcess.Messaging;
 using Larva.MessageProcess.Processing;
+using Larva.MessageProcess.Processing.Mailboxes;
 using Larva.MessageProcess.RabbitMQ.Eventing;
 using Newtonsoft.Json;
 using RabbitMQTopic;
@@ -14,23 +15,28 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
 {
     public class EventConsumer
     {
+        private readonly IProcessingMessageMailboxProvider _mailboxProvider;
+        private ILogger _logger;
         private EventHandlerProvider _eventHandlerProvider;
         private DefaultMessageProcessor _eventStreamProcessor;
         private Consumer _consumer;
         private string _subscriber;
-        private ILogger _logger = LoggerManager.GetLogger(typeof(EventConsumer));
+
+        public EventConsumer()
+        {
+            _mailboxProvider = new DefaultProcessingMessageMailboxProvider(new DefaultProcessingMessageHandler());
+            _logger = LoggerManager.GetLogger(typeof(EventConsumer));
+        }
 
         public void Initialize(ConsumerSettings consumerSettings, string topic, int queueCount, int retryIntervalSeconds, IInterceptor[] interceptors, params Assembly[] assemblies)
         {
             _consumer = new Consumer(consumerSettings);
             _consumer.Subscribe(topic, queueCount);
             _subscriber = consumerSettings.GroupName == null ? string.Empty : consumerSettings.GroupName;
+
             _eventHandlerProvider = new EventHandlerProvider();
             _eventHandlerProvider.Initialize(interceptors, assemblies);
-            var processingMessageHandler = new DefaultProcessingMessageHandler();
-            processingMessageHandler.Initialize(_subscriber, _eventHandlerProvider);
-            _eventStreamProcessor = new DefaultMessageProcessor();
-            _eventStreamProcessor.Initialize(_subscriber, processingMessageHandler, false, retryIntervalSeconds);
+            _eventStreamProcessor = new DefaultMessageProcessor(_subscriber, _eventHandlerProvider, _mailboxProvider, false, retryIntervalSeconds);
         }
 
         public void Start()
@@ -76,11 +82,11 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
             _eventStreamProcessor.Stop();
         }
 
-        internal class EventExecutingContext : IMessageExecutingContext
+        private class EventExecutingContext : IMessageExecutingContext
         {
+            private readonly ILogger _logger;
+            private readonly IMessageTransportationContext _transportationContext;
             private string _result;
-            private ILogger _logger;
-            private IMessageTransportationContext _transportationContext;
 
             public EventExecutingContext(ILogger logger, IMessageTransportationContext transportationContext)
             {

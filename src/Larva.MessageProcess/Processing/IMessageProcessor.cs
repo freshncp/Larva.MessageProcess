@@ -8,7 +8,7 @@
         /// <summary>
         /// 处理
         /// </summary>
-        /// <param name="processingMessage"></param>
+        /// <param name="processingMessage">处理中消息</param>
         void Process(ProcessingMessage processingMessage);
         
         /// <summary>

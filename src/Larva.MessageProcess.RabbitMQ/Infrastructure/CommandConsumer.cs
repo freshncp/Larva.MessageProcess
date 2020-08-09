@@ -1,7 +1,7 @@
-﻿using log4net;
-using Larva.DynamicProxy.Interception;
+﻿using Larva.DynamicProxy.Interception;
 using Larva.MessageProcess.Messaging;
 using Larva.MessageProcess.Processing;
+using Larva.MessageProcess.Processing.Mailboxes;
 using Larva.MessageProcess.RabbitMQ.Commanding;
 using Newtonsoft.Json;
 using RabbitMQTopic;
@@ -13,21 +13,26 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
 {
     public class CommandConsumer
     {
-        private DefaultMessageProcessor _commandProcessor;
+        private readonly IProcessingMessageMailboxProvider _mailboxProvider;
+        private readonly ILogger _logger;
         private CommandHandlerProvider _commandHandlerProvider;
+        private DefaultMessageProcessor _commandProcessor;
         private Consumer _consumer;
-        private ILogger _logger = LoggerManager.GetLogger(typeof(CommandConsumer));
+
+        public CommandConsumer()
+        {
+            _mailboxProvider = new DefaultProcessingMessageMailboxProvider(new DefaultProcessingMessageHandler());
+            _logger = LoggerManager.GetLogger(typeof(CommandConsumer));
+        }
 
         public void Initialize(ConsumerSettings consumerSettings, string topic, int queueCount, int retryIntervalSeconds, IInterceptor[] interceptors, params Assembly[] assemblies)
         {
             _consumer = new Consumer(consumerSettings);
             _consumer.Subscribe(topic, queueCount);
+
             _commandHandlerProvider = new CommandHandlerProvider();
             _commandHandlerProvider.Initialize(interceptors, assemblies);
-            var processingMessageHandler = new DefaultProcessingMessageHandler();
-            processingMessageHandler.Initialize(string.Empty, _commandHandlerProvider);
-            _commandProcessor = new DefaultMessageProcessor();
-            _commandProcessor.Initialize(string.Empty, processingMessageHandler, true, retryIntervalSeconds);
+            _commandProcessor = new DefaultMessageProcessor(string.Empty, _commandHandlerProvider, _mailboxProvider, true, retryIntervalSeconds);
         }
 
         public void Start()
@@ -66,11 +71,11 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
             _commandProcessor.Stop();
         }
 
-        internal class CommandExecutingContext : IMessageExecutingContext
+        private class CommandExecutingContext : IMessageExecutingContext
         {
+            private readonly ILogger _logger;
+            private readonly IMessageTransportationContext _transportationContext;
             private string _result;
-            private ILogger _logger;
-            private IMessageTransportationContext _transportationContext;
 
             public CommandExecutingContext(ILogger logger, IMessageTransportationContext transportationContext)
             {

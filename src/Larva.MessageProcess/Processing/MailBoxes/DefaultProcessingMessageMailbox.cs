@@ -1,4 +1,5 @@
-﻿using Larva.MessageProcess.Messaging;
+﻿using Larva.MessageProcess.Handling;
+using Larva.MessageProcess.Messaging;
 using Larva.MessageProcess.Processing;
 using System;
 using System.Collections.Concurrent;
@@ -6,7 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Larva.MessageProcess.Mailboxes
+namespace Larva.MessageProcess.Processing.Mailboxes
 {
     /// <summary>
     /// 处理中消息邮箱
@@ -18,11 +19,11 @@ namespace Larva.MessageProcess.Mailboxes
         private readonly ConcurrentQueue<ProcessingMessageWithCreatedTime> _problemProcessingMessages;
         private readonly ConcurrentDictionary<long, ProcessingMessageWithCreatedTime> _problemProcessingMessages2;
         private readonly ILogger _logger;
-        private IProcessingMessageHandler _processingMessageHandler;
-        private bool _continueWhenHandleFail;
-        private int _retryIntervalSeconds;
-        private int _batchSize;
-        private volatile int _initialized;
+        private readonly IMessageHandlerProvider _messageHandlerProvider;
+        private readonly IProcessingMessageHandler _processingMessageHandler;
+        private readonly bool _continueWhenHandleFail;
+        private readonly int _retryIntervalSeconds;
+        private readonly int _batchSize;
         private volatile int _isRemoved;
         private volatile int _isRunning;
         private long _nextSequence;
@@ -32,8 +33,26 @@ namespace Larva.MessageProcess.Mailboxes
         /// <summary>
         /// 处理中消息邮箱
         /// </summary>
-        public DefaultProcessingMessageMailbox()
+        /// <param name="businessKey">业务键</param>
+        /// <param name="subscriber">订阅者</param>
+        /// <param name="messageHandlerProvider">消息处理器提供者</param>
+        /// <param name="processingMessageHandler">处理中消息处理器</param>
+        /// <param name="continueWhenHandleFail">相同BusinessKey的消息处理失败后，是否继续推进</param>
+        /// <param name="retryIntervalSeconds">重试间隔秒数</param>
+        /// <param name="batchSize">批量处理大小</param>
+        public DefaultProcessingMessageMailbox(
+            string businessKey,
+            string subscriber,
+            IMessageHandlerProvider messageHandlerProvider,
+            IProcessingMessageHandler processingMessageHandler,
+            bool continueWhenHandleFail,
+            int retryIntervalSeconds,
+            int batchSize)
         {
+            if (string.IsNullOrEmpty(businessKey))
+            {
+                throw new ArgumentNullException(nameof(businessKey));
+            }
             _processingMessageDict = new ConcurrentDictionary<long, ProcessingMessage>();
             _problemProcessingMessages = new ConcurrentQueue<ProcessingMessageWithCreatedTime>();
             _problemProcessingMessages2 = new ConcurrentDictionary<long, ProcessingMessageWithCreatedTime>();
@@ -41,44 +60,26 @@ namespace Larva.MessageProcess.Mailboxes
             _nextSequence = 1;
             LastActiveTime = DateTime.Now;
             Locker = new SpinLock();
-        }
 
-        /// <summary>
-        /// 初始化
-        /// </summary>
-        /// <param name="businessKey">业务键</param>
-        /// <param name="subscriber">订阅者</param>
-        /// <param name="processingMessageHandler">消息处理器</param>
-        /// <param name="continueWhenHandleFail">相同BusinessKey的消息处理失败后，是否继续推进</param>
-        /// <param name="retryIntervalSeconds">重试间隔秒数</param>
-        /// <param name="batchSize">批量处理大小</param>
-        public void Initialize(string businessKey, string subscriber, IProcessingMessageHandler processingMessageHandler, bool continueWhenHandleFail, int retryIntervalSeconds, int batchSize)
-        {
-            if (string.IsNullOrEmpty(businessKey))
-            {
-                throw new ArgumentNullException(nameof(businessKey));
-            }
-            if (Interlocked.CompareExchange(ref _initialized, 1, 0) == 0)
-            {
-                BusinessKey = businessKey;
-                Subscriber = subscriber;
-                _processingMessageHandler = processingMessageHandler;
-                _continueWhenHandleFail = continueWhenHandleFail;
-                _retryIntervalSeconds = retryIntervalSeconds <= 0 ? 1 : retryIntervalSeconds;
-                _batchSize = batchSize <= 0 ? 1000 : batchSize;
-                ProcessProblemMessage();
-            }
+            BusinessKey = businessKey;
+            Subscriber = subscriber;
+            _messageHandlerProvider = messageHandlerProvider;
+            _processingMessageHandler = processingMessageHandler;
+            _continueWhenHandleFail = continueWhenHandleFail;
+            _retryIntervalSeconds = retryIntervalSeconds <= 0 ? 1 : retryIntervalSeconds;
+            _batchSize = batchSize <= 0 ? 1000 : batchSize;
+            ProcessProblemMessage();
         }
 
         /// <summary>
         /// 业务键
         /// </summary>
-        public string BusinessKey { get; private set; }
+        public string BusinessKey { get; }
 
         /// <summary>
         /// 订阅者
         /// </summary>
-        public string Subscriber { get; private set; }
+        public string Subscriber { get; }
 
         /// <summary>
         /// 最后一次激活时间，作为清理的依据之一
@@ -233,7 +234,7 @@ namespace Larva.MessageProcess.Mailboxes
                             continue;
                         }
 
-                        var processSuccess = await _processingMessageHandler.HandleAsync(processingMessage).ConfigureAwait(false);
+                        var processSuccess = await _processingMessageHandler.HandleAsync(Subscriber, processingMessage, _messageHandlerProvider).ConfigureAwait(false);
                         if (!processSuccess)
                         {
                             if (_continueWhenHandleFail)
@@ -284,7 +285,7 @@ namespace Larva.MessageProcess.Mailboxes
                                 var processingMessage = processingMessagePair.Message;
                                 var message = processingMessage.Message;
                                 var messageTypeName = message.GetMessageTypeName();
-                                var processSuccess = await _processingMessageHandler.HandleAsync(processingMessage).ConfigureAwait(false);
+                                var processSuccess = await _processingMessageHandler.HandleAsync(Subscriber, processingMessage, _messageHandlerProvider).ConfigureAwait(false);
                                 if (processSuccess)
                                 {
                                     _problemProcessingMessages2.TryRemove(sequence, out ProcessingMessageWithCreatedTime _);
@@ -307,7 +308,7 @@ namespace Larva.MessageProcess.Mailboxes
                                 var processingMessage = processingMessagePair.Message;
                                 var message = processingMessage.Message;
                                 var messageTypeName = message.GetMessageTypeName();
-                                var processSuccess = await _processingMessageHandler.HandleAsync(processingMessage).ConfigureAwait(false);
+                                var processSuccess = await _processingMessageHandler.HandleAsync(Subscriber, processingMessage, _messageHandlerProvider).ConfigureAwait(false);
                                 if (processSuccess)
                                 {
                                     _problemProcessingMessages.TryDequeue(out ProcessingMessageWithCreatedTime _);

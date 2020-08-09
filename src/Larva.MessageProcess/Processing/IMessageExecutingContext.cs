@@ -11,7 +11,7 @@ namespace Larva.MessageProcess.Processing
         /// <summary>
         /// 通知消息已执行
         /// </summary>
-        /// <param name="messageResult"></param>
+        /// <param name="messageResult">消息结果</param>
         /// <returns></returns>
         Task NotifyMessageExecutedAsync(MessageExecutingResult messageResult);
     }

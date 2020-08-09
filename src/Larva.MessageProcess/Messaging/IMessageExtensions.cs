@@ -17,7 +17,7 @@ namespace Larva.MessageProcess.Messaging
         /// <summary>
         /// 获取消息类型名
         /// </summary>
-        /// <param name="message"></param>
+        /// <param name="message">消息</param>
         /// <returns></returns>
         public static string GetMessageTypeName(this IMessage message)
         {
@@ -40,7 +40,7 @@ namespace Larva.MessageProcess.Messaging
         /// <summary>
         /// 获取消息类型名
         /// </summary>
-        /// <param name="messageType"></param>
+        /// <param name="messageType">消息类型</param>
         /// <returns></returns>
         public static string GetMessageTypeName(this Type messageType)
         {
@@ -56,8 +56,8 @@ namespace Larva.MessageProcess.Messaging
         /// <summary>
         /// 合并额外数据
         /// </summary>
-        /// <param name="message"></param>
-        /// <param name="extraDatas"></param>
+        /// <param name="message">消息</param>
+        /// <param name="extraDatas">额外数据</param>
         public static void MergeExtraDatas(this IMessage message, IDictionary<string, string> extraDatas)
         {
             if (extraDatas == null || extraDatas.Count == 0)
@@ -84,9 +84,9 @@ namespace Larva.MessageProcess.Messaging
         /// <summary>
         /// 设置额外数据
         /// </summary>
-        /// <param name="message"></param>
-        /// <param name="extraDataKey"></param>
-        /// <param name="extraDataVal"></param>
+        /// <param name="message">消息</param>
+        /// <param name="extraDataKey">额外数据键</param>
+        /// <param name="extraDataVal">额外数据值</param>
         public static void SetExtraData(this IMessage message, string extraDataKey, string extraDataVal)
         {
             if (message.ExtraDatas == null)
@@ -106,8 +106,8 @@ namespace Larva.MessageProcess.Messaging
         /// <summary>
         /// 获取额外数据
         /// </summary>
-        /// <param name="message"></param>
-        /// <param name="extraDataKey"></param>
+        /// <param name="message">消息</param>
+        /// <param name="extraDataKey">额外数据键</param>
         /// <returns></returns>
         public static string GetExtraData(this IMessage message, string extraDataKey)
         {

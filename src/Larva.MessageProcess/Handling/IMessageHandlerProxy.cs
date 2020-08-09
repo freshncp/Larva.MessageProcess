@@ -11,8 +11,8 @@ namespace Larva.MessageProcess.Handling
         /// <summary>
         /// 处理
         /// </summary>
-        /// <param name="message"></param>
-        /// <param name="ctx"></param>
+        /// <param name="message">消息</param>
+        /// <param name="ctx">消息上下文</param>
         /// <returns></returns>
         Task HandleAsync(IMessage message, IMessageContext ctx);
 

@@ -1,4 +1,5 @@
-﻿using Larva.MessageProcess.Mailboxes;
+﻿using Larva.MessageProcess.Handling;
+using Larva.MessageProcess.Processing.Mailboxes;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -14,61 +15,55 @@ namespace Larva.MessageProcess.Processing
         private readonly ILogger _logger;
         private readonly ConcurrentDictionary<string, IProcessingMessageMailbox> _mailboxDict;
         private readonly Timer _cleanInactiveMailboxTimer;
-        private volatile int _initialized;
+        private readonly string _subscriber;
+        private readonly IMessageHandlerProvider _messageHandlerProvider;
+        private readonly IProcessingMessageMailboxProvider _mailboxProvider;
+        private readonly bool _continueWhenHandleFail;
+        private readonly int _retryIntervalSeconds;
+        private readonly int _mailboxTimeoutSeconds;
+        private readonly int _cleanInactiveMailboxIntervalSeconds;
+        private readonly int _batchSize;
         private volatile int _isRunning;
-        private string _subscriber;
-        private IProcessingMessageHandler _handler;
-        private bool _continueWhenHandleFail;
-        private int _retryIntervalSeconds;
-        private int _mailboxTimeoutSeconds;
-        private int _cleanInactiveMailboxIntervalSeconds;
-        private int _batchSize;
 
         /// <summary>
         /// 默认消息处理器
         /// </summary>
-        public DefaultMessageProcessor()
-        {
-            _mailboxDict = new ConcurrentDictionary<string, IProcessingMessageMailbox>();
-            _logger = LoggerManager.GetLogger(GetType());
-            _cleanInactiveMailboxTimer = new Timer(CleanInactiveMailbox);
-        }
-
-        /// <summary>
-        /// 初始化
-        /// </summary>
         /// <param name="subscriber">订阅者</param>
-        /// <param name="handler"></param>
+        /// <param name="messageHandlerProvider">消息处理器提供者</param>
+        /// <param name="mailboxProvider">Mailbox提供者</param>
         /// <param name="continueWhenHandleFail">相同BusinessKey的消息处理失败后，是否继续推进</param>
         /// <param name="retryIntervalSeconds">重试间隔秒数</param>
         /// <param name="mailboxTimeoutSeconds">邮箱超时秒数</param>
         /// <param name="cleanInactiveMailboxIntervalSeconds">清理未激活邮箱间隔秒数</param>
         /// <param name="batchSize">批量处理大小</param>
-        public void Initialize(
+        public DefaultMessageProcessor(
             string subscriber,
-            IProcessingMessageHandler handler,
+            IMessageHandlerProvider messageHandlerProvider,
+            IProcessingMessageMailboxProvider mailboxProvider,
             bool continueWhenHandleFail,
             int retryIntervalSeconds,
             int mailboxTimeoutSeconds = 86400,
             int cleanInactiveMailboxIntervalSeconds = 10,
             int batchSize = 1000)
         {
-            if (Interlocked.CompareExchange(ref _initialized, 1, 0) == 0)
-            {
-                _subscriber = subscriber;
-                _handler = handler;
-                _continueWhenHandleFail = continueWhenHandleFail;
-                _retryIntervalSeconds = retryIntervalSeconds;
-                _mailboxTimeoutSeconds = mailboxTimeoutSeconds;
-                _cleanInactiveMailboxIntervalSeconds = cleanInactiveMailboxIntervalSeconds;
-                _batchSize = batchSize;
-            }
+            _mailboxDict = new ConcurrentDictionary<string, IProcessingMessageMailbox>();
+            _logger = LoggerManager.GetLogger(GetType());
+            _cleanInactiveMailboxTimer = new Timer(CleanInactiveMailbox);
+
+            _subscriber = subscriber;
+            _messageHandlerProvider = messageHandlerProvider;
+            _mailboxProvider = mailboxProvider;
+            _continueWhenHandleFail = continueWhenHandleFail;
+            _retryIntervalSeconds = retryIntervalSeconds;
+            _mailboxTimeoutSeconds = mailboxTimeoutSeconds;
+            _cleanInactiveMailboxIntervalSeconds = cleanInactiveMailboxIntervalSeconds;
+            _batchSize = batchSize;
         }
 
         /// <summary>
         /// 处理
         /// </summary>
-        /// <param name="processinMessage"></param>
+        /// <param name="processinMessage">处理中消息</param>
         public void Process(ProcessingMessage processinMessage)
         {
             if (_isRunning == 0) throw new InvalidOperationException($"{GetType().Name} is not running!");
@@ -80,8 +75,7 @@ namespace Larva.MessageProcess.Processing
 
             var mailbox = _mailboxDict.GetOrAdd(businessKey, x =>
             {
-                var newMailBox = (IProcessingMessageMailbox)ObjectContainer.Resolve(typeof(IProcessingMessageMailbox), typeof(DefaultProcessingMessageMailbox));
-                newMailBox.Initialize(x, _subscriber, _handler, _continueWhenHandleFail, _retryIntervalSeconds, _batchSize);
+                var newMailBox = _mailboxProvider.CreateMailbox(x, _subscriber, _messageHandlerProvider, _continueWhenHandleFail, _retryIntervalSeconds, _batchSize);
                 return newMailBox;
             });
 
@@ -91,8 +85,7 @@ namespace Larva.MessageProcess.Processing
                 mailbox.Locker.Enter(ref lockToken);
                 if (mailbox.IsRemoved)
                 {
-                    mailbox = (IProcessingMessageMailbox)ObjectContainer.Resolve(typeof(IProcessingMessageMailbox), typeof(DefaultProcessingMessageMailbox));
-                    mailbox.Initialize(businessKey, _subscriber, _handler, _continueWhenHandleFail, _retryIntervalSeconds, _batchSize);
+                    mailbox = _mailboxProvider.CreateMailbox(businessKey, _subscriber, _messageHandlerProvider, _continueWhenHandleFail, _retryIntervalSeconds, _batchSize);
                     _mailboxDict.TryAdd(businessKey, mailbox);
                 }
                 mailbox.Enqueue(processinMessage);

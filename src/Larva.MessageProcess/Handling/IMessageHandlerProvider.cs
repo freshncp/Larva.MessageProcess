@@ -17,8 +17,8 @@ namespace Larva.MessageProcess.Handling
         /// <summary>
         /// 获取处理器列表
         /// </summary>
-        /// <param name="messageType"></param>
-        /// <param name="subscriber"></param>
+        /// <param name="messageType">消息类型</param>
+        /// <param name="subscriber">订阅者</param>
         /// <returns></returns>
         IEnumerable<IMessageHandlerProxy> GetHandlers(Type messageType, string subscriber);
     }

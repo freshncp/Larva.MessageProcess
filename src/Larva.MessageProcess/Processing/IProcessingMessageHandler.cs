@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using Larva.MessageProcess.Handling;
 
 namespace Larva.MessageProcess.Processing
 {
@@ -10,8 +11,10 @@ namespace Larva.MessageProcess.Processing
         /// <summary>
         /// 处理
         /// </summary>
-        /// <param name="processingMessage"></param>
+        /// <param name="subscriber">订阅者</param>
+        /// <param name="processingMessage">处理中消息</param>
+        /// <param name="messageHandlerProvider">消息处理器提供者</param>
         /// <returns></returns>
-        Task<bool> HandleAsync(ProcessingMessage processingMessage);
+        Task<bool> HandleAsync(string subscriber, ProcessingMessage processingMessage, IMessageHandlerProvider messageHandlerProvider);
     }
 }

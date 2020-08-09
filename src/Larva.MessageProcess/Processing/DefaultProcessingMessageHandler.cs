@@ -4,7 +4,6 @@ using Larva.MessageProcess.Messaging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Larva.MessageProcess.Processing
@@ -15,9 +14,6 @@ namespace Larva.MessageProcess.Processing
     public class DefaultProcessingMessageHandler : IProcessingMessageHandler
     {
         private readonly ILogger _logger;
-        private volatile int _initialized;
-        private string _subscriber;
-        private IMessageHandlerProvider _messageHandlerProvider;
 
         /// <summary>
         /// 处理中消息的处理器
@@ -28,48 +24,36 @@ namespace Larva.MessageProcess.Processing
         }
 
         /// <summary>
-        /// 初始化
-        /// </summary>
-        /// <param name="subscriber">订阅者</param>
-        /// <param name="messageHandlerProvider">消息处理器提供者</param>
-        public void Initialize(string subscriber, IMessageHandlerProvider messageHandlerProvider)
-        {
-            if (Interlocked.CompareExchange(ref _initialized, 1, 0) == 0)
-            {
-                _subscriber = subscriber;
-                _messageHandlerProvider = messageHandlerProvider;
-            }
-        }
-
-        /// <summary>
         /// 处理
         /// </summary>
+        /// <param name="subscriber">订阅者</param>
         /// <param name="processingMessage">处理中消息</param>
+        /// <param name="messageHandlerProvider">消息处理器提供者</param>
         /// <returns></returns>
-        public async Task<bool> HandleAsync(ProcessingMessage processingMessage)
+        public async Task<bool> HandleAsync(string subscriber, ProcessingMessage processingMessage, IMessageHandlerProvider messageHandlerProvider)
         {
             var message = processingMessage.Message;
             var messageTypeName = message.GetMessageTypeName();
 
-            var findResult = GetMessageHandler(processingMessage, out IDictionary<IMessage, IEnumerable<IMessageHandlerProxy>> messageHandlerProxyDict);
+            var findResult = GetMessageHandler(subscriber, processingMessage, messageHandlerProvider, out IDictionary<IMessage, IEnumerable<IMessageHandlerProxy>> messageHandlerProxyDict);
             if (findResult == HandlerFindResult.Found)
             {
-                return await HandleInternal(processingMessage, messageHandlerProxyDict).ConfigureAwait(false);
+                return await HandleInternal(subscriber, processingMessage, messageHandlerProxyDict).ConfigureAwait(false);
             }
             else if (findResult == HandlerFindResult.NotFound)
             {
-                var warnMessage = $"No message handler found of message, businessKey: {message.BusinessKey}, subscriber: {_subscriber}, messageId: {message.Id}, messageType: {messageTypeName}";
-                await CompleteMessageAsync(processingMessage, MessageExecutingStatus.HandlerNotFound, typeof(string).FullName, warnMessage).ConfigureAwait(false);
+                var warnMessage = $"No message handler found of message, businessKey: {message.BusinessKey}, subscriber: {subscriber}, messageId: {message.Id}, messageType: {messageTypeName}";
+                await CompleteMessageAsync(subscriber, processingMessage, MessageExecutingStatus.HandlerNotFound, typeof(string).FullName, warnMessage).ConfigureAwait(false);
                 return true;
             }
             else
             {
-                await CompleteMessageAsync(processingMessage, MessageExecutingStatus.Success, string.Empty, string.Empty).ConfigureAwait(false);
+                await CompleteMessageAsync(subscriber, processingMessage, MessageExecutingStatus.Success, string.Empty, string.Empty).ConfigureAwait(false);
                 return true;
             }
         }
 
-        private async Task<bool> HandleInternal(ProcessingMessage processingMessage, IDictionary<IMessage, IEnumerable<IMessageHandlerProxy>> messageHandlerProxyDict)
+        private async Task<bool> HandleInternal(string subscriber, ProcessingMessage processingMessage, IDictionary<IMessage, IEnumerable<IMessageHandlerProxy>> messageHandlerProxyDict)
         {
             try
             {
@@ -90,20 +74,20 @@ namespace Larva.MessageProcess.Processing
                 }
 
                 var result = processingMessage.ExecutingContext.GetResult();
-                await CompleteMessageAsync(processingMessage, MessageExecutingStatus.Success, typeof(string).FullName, result).ConfigureAwait(false);
+                await CompleteMessageAsync(subscriber, processingMessage, MessageExecutingStatus.Success, typeof(string).FullName, result).ConfigureAwait(false);
                 return true;
             }
             catch (Exception ex)
             {
-                await HandleExceptionAsync(processingMessage, ex, ex.Message).ConfigureAwait(false);
+                await HandleExceptionAsync(subscriber, processingMessage, ex, ex.Message).ConfigureAwait(false);
                 return false;
             }
         }
 
-        private async Task HandleExceptionAsync(ProcessingMessage processingMessage, Exception exception, string errorMessage)
+        private async Task HandleExceptionAsync(string subscriber, ProcessingMessage processingMessage, Exception exception, string errorMessage)
         {
             var realException = GetRealException(exception);
-            await CompleteMessageAsync(processingMessage, MessageExecutingStatus.Failed, realException.GetType().FullName, realException != null ? realException.Message : errorMessage, realException != null ? realException.StackTrace : string.Empty).ConfigureAwait(false);
+            await CompleteMessageAsync(subscriber, processingMessage, MessageExecutingStatus.Failed, realException.GetType().FullName, realException != null ? realException.Message : errorMessage, realException != null ? realException.StackTrace : string.Empty).ConfigureAwait(false);
         }
 
         private Exception GetRealException(Exception exception)
@@ -115,7 +99,7 @@ namespace Larva.MessageProcess.Processing
             return exception;
         }
 
-        private HandlerFindResult GetMessageHandler(ProcessingMessage processingMessage, out IDictionary<IMessage, IEnumerable<IMessageHandlerProxy>> messageHandlerProxyDict)
+        private HandlerFindResult GetMessageHandler(string subscriber, ProcessingMessage processingMessage, IMessageHandlerProvider messageHandlerProvider, out IDictionary<IMessage, IEnumerable<IMessageHandlerProxy>> messageHandlerProxyDict)
         {
             messageHandlerProxyDict = new Dictionary<IMessage, IEnumerable<IMessageHandlerProxy>>();
             var messageGroup = processingMessage.Message as MessageGroup;
@@ -128,7 +112,7 @@ namespace Larva.MessageProcess.Processing
                 foreach (var message in messageGroup.Messages)
                 {
                     var messageType = message.GetType();
-                    var handlerProxyList = _messageHandlerProvider.GetHandlers(messageType, _subscriber);
+                    var handlerProxyList = messageHandlerProvider.GetHandlers(messageType, subscriber);
                     if (handlerProxyList != null && handlerProxyList.Any())
                     {
                         messageHandlerProxyDict.Add(message, handlerProxyList);
@@ -144,7 +128,7 @@ namespace Larva.MessageProcess.Processing
             else
             {
                 var messageType = processingMessage.Message.GetType();
-                var handlerProxyList = _messageHandlerProvider.GetHandlers(messageType, _subscriber);
+                var handlerProxyList = messageHandlerProvider.GetHandlers(messageType, subscriber);
                 if (handlerProxyList == null || handlerProxyList.Count() == 0)
                 {
                     return HandlerFindResult.NotFound;
@@ -157,9 +141,9 @@ namespace Larva.MessageProcess.Processing
             }
         }
 
-        private async Task CompleteMessageAsync(ProcessingMessage processingMessage, MessageExecutingStatus commandStatus, string resultType, string result, string stackTrace = null)
+        private async Task CompleteMessageAsync(string subscriber, ProcessingMessage processingMessage, MessageExecutingStatus commandStatus, string resultType, string result, string stackTrace = null)
         {
-            var commandResult = new MessageExecutingResult(commandStatus, processingMessage.Message, _subscriber, result, resultType, stackTrace);
+            var commandResult = new MessageExecutingResult(commandStatus, processingMessage.Message, subscriber, result, resultType, stackTrace);
             await processingMessage.CompleteAsync(commandResult).ConfigureAwait(false);
         }
 

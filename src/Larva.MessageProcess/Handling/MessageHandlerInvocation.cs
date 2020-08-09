@@ -18,14 +18,14 @@ namespace Larva.MessageProcess.Handling
         /// </summary>
         /// <param name="interceptors">拦截器</param>
         /// <param name="messageType">消息类型</param>
-        /// <param name="messageHandler"></param>
-        /// <param name="handleAsyncFunc"></param>
-        /// <param name="messageHandlerProxy"></param>
-        /// <param name="arguments"></param>
-        public MessageHandlerInvocation(IInterceptor[] interceptors, Type messageType, object messageHandler, Func<IMessage, IMessageContext, Task> handleAsyncFunc, object messageHandlerProxy, object[] arguments)
+        /// <param name="messageHandler">消息处理器</param>
+        /// <param name="handleFunc">处理函数</param>
+        /// <param name="messageHandlerProxy">消息处理器代理</param>
+        /// <param name="arguments">消息处理参数</param>
+        public MessageHandlerInvocation(IInterceptor[] interceptors, Type messageType, object messageHandler, Func<IMessage, IMessageContext, Task> handleFunc, object messageHandlerProxy, object[] arguments)
             : base(interceptors, MemberTypes.Method, "HandleAsync", MemberOperateTypes.None, new Type[] { messageType, typeof(IMessageContext) }, Type.EmptyTypes, typeof(Task), messageHandler, messageHandlerProxy, arguments)
         {
-            _methodInvocationTargetFunc = handleAsyncFunc;
+            _methodInvocationTargetFunc = handleFunc;
         }
 
         /// <summary>

@@ -17,8 +17,8 @@ namespace Larva.MessageProcess.Handling
         /// <summary>
         /// 消息处理器代理
         /// </summary>
-        /// <param name="messageHandler"></param>
-        /// <param name="interceptors"></param>
+        /// <param name="messageHandler">消息处理器</param>
+        /// <param name="interceptors">拦截器</param>
         public MessageHandlerProxy(IMessageHandler<TMessage> messageHandler, IInterceptor[] interceptors)
         {
             if (messageHandler == null)
@@ -32,8 +32,8 @@ namespace Larva.MessageProcess.Handling
         /// <summary>
         /// 处理
         /// </summary>
-        /// <param name="message"></param>
-        /// <param name="ctx"></param>
+        /// <param name="message">消息</param>
+        /// <param name="ctx">消息上下文</param>
         /// <returns></returns>
         public Task HandleAsync(IMessage message, IMessageContext ctx)
         {

@@ -26,10 +26,6 @@
 
 - `IMessageHandler` 支持幂等。通过 `StandardInterceptor` 的 `PreProceed`，使用实现了 `IAutoIdempotentStore` 的幂等存储，来判断是否已处理过，已处理过的抛出 `DuplicateMessageHandlingException` 异常，在 `PostProceed` 中保存已处理
 
-## 开发日程
-
-1）消息自定义顺序支持
-
 ## 安装
 
 ```sh
@@ -61,21 +57,26 @@ public class CommandHandlerProvider : AbstractMessageHandlerProvider
 // 命令消费者
 public class CommandConsumer
 {
-    private DefaultMessageProcessor _commandProcessor;
+    private readonly IProcessingMessageMailboxProvider _mailboxProvider;
+    private readonly ILogger _logger;
     private CommandHandlerProvider _commandHandlerProvider;
+    private DefaultMessageProcessor _commandProcessor;
     private Consumer _consumer;
-    private ILogger _logger = LoggerManager.GetLogger(typeof(CommandConsumer));
+
+    public CommandConsumer()
+    {
+        _mailboxProvider = new DefaultProcessingMessageMailboxProvider(new DefaultProcessingMessageHandler());
+        _logger = LoggerManager.GetLogger(typeof(CommandConsumer));
+    }
 
     public void Initialize(ConsumerSettings consumerSettings, string topic, int queueCount, int retryIntervalSeconds, IInterceptor[] interceptors, params Assembly[] assemblies)
     {
         _consumer = new Consumer(consumerSettings);
         _consumer.Subscribe(topic, queueCount);
+
         _commandHandlerProvider = new CommandHandlerProvider();
         _commandHandlerProvider.Initialize(interceptors, assemblies);
-        var processingMessageHandler = new DefaultProcessingMessageHandler();
-        processingMessageHandler.Initialize(string.Empty, _commandHandlerProvider);
-        _commandProcessor = new DefaultMessageProcessor();
-        _commandProcessor.Initialize(string.Empty, processingMessageHandler, true, retryIntervalSeconds);
+        _commandProcessor = new DefaultMessageProcessor(string.Empty, _commandHandlerProvider, _mailboxProvider, true, retryIntervalSeconds);
     }
 
     public void Start()
@@ -114,11 +115,11 @@ public class CommandConsumer
         _commandProcessor.Stop();
     }
 
-    internal class CommandExecutingContext : IMessageExecutingContext
+    private class CommandExecutingContext : IMessageExecutingContext
     {
+        private readonly ILogger _logger;
+        private readonly IMessageTransportationContext _transportationContext;
         private string _result;
-        private ILogger _logger;
-        private IMessageTransportationContext _transportationContext;
 
         public CommandExecutingContext(ILogger logger, IMessageTransportationContext transportationContext)
         {
@@ -154,6 +155,12 @@ public class CommandConsumer
 ```
 
 ## 发布历史
+
+### 待发布
+
+```plain
+1）代码重构，更好支持基于接口的依赖注入，目前支持 IProcessingMessageMailboxProvider、IProcessingMessageHandler。
+```
 
 ### 1.2.0 （更新日期：2020/8/9）
 

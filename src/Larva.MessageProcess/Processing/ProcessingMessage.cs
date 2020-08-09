@@ -15,14 +15,14 @@ namespace Larva.MessageProcess.Processing
         /// <summary>
         /// 处理中消息
         /// </summary>
-        /// <param name="message"></param>
-        /// <param name="executingContext"></param>
-        /// <param name="items"></param>
-        public ProcessingMessage(IMessage message, IMessageExecutingContext executingContext, IDictionary<string, string> items = null)
+        /// <param name="message">消息</param>
+        /// <param name="executingContext">消息执行上下文</param>
+        /// <param name="extraDatas">额外数据</param>
+        public ProcessingMessage(IMessage message, IMessageExecutingContext executingContext, IDictionary<string, string> extraDatas = null)
         {
             Message = message;
             ExecutingContext = executingContext;
-            Items = items ?? new Dictionary<string, string>();
+            ExtraDatas = extraDatas ?? new Dictionary<string, string>();
         }
 
         /// <summary>
@@ -36,9 +36,9 @@ namespace Larva.MessageProcess.Processing
         public IMessageExecutingContext ExecutingContext { get; private set; }
 
         /// <summary>
-        /// 扩展项
+        /// 额外数据
         /// </summary>
-        public IDictionary<string, string> Items { get; private set; }
+        public IDictionary<string, string> ExtraDatas { get; private set; }
 
         /// <summary>
         /// 顺序
@@ -48,7 +48,7 @@ namespace Larva.MessageProcess.Processing
         /// <summary>
         /// 设置 TryDequeue 回调
         /// </summary>
-        /// <param name="tryDequeueFunc"></param>
+        /// <param name="tryDequeueFunc">尝试消息出队函数</param>
         public void SetTryDequeueCallback(Func<ProcessingMessage, bool> tryDequeueFunc)
         {
             _tryDequeueFunc = tryDequeueFunc;
@@ -57,7 +57,7 @@ namespace Larva.MessageProcess.Processing
         /// <summary>
         /// 完成
         /// </summary>
-        /// <param name="messageResult"></param>
+        /// <param name="messageResult">消息结果</param>
         /// <returns></returns>
         public async Task CompleteAsync(MessageExecutingResult messageResult)
         {

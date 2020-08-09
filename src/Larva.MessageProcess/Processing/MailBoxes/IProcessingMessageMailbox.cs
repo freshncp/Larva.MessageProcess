@@ -1,8 +1,8 @@
-﻿using Larva.MessageProcess.Processing;
-using System;
+﻿using System;
 using System.Threading;
+using Larva.MessageProcess.Handling;
 
-namespace Larva.MessageProcess.Mailboxes
+namespace Larva.MessageProcess.Processing.Mailboxes
 {
     /// <summary>
     /// 处理中消息邮箱 接口
@@ -54,17 +54,6 @@ namespace Larva.MessageProcess.Mailboxes
         /// </summary>
         bool IsFree { get; }
 
-        /// <summary>
-        /// 初始化
-        /// </summary>
-        /// <param name="businessKey">业务键</param>
-        /// <param name="subscriber">订阅者</param>
-        /// <param name="processingMessageHandler">消息处理器</param>
-        /// <param name="continueWhenHandleFail">相同BusinessKey的消息处理失败后，是否继续推进</param>
-        /// <param name="retryIntervalSeconds">重试间隔秒数</param>
-        /// <param name="batchSize">批量处理大小</param>
-        void Initialize(string businessKey, string subscriber, IProcessingMessageHandler processingMessageHandler, bool continueWhenHandleFail, int retryIntervalSeconds, int batchSize);
-        
         /// <summary>
         /// 入队
         /// </summary>
