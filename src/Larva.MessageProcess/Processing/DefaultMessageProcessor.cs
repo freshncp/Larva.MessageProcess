@@ -73,11 +73,10 @@ namespace Larva.MessageProcess.Processing
                 throw new ArgumentException("businessKey of message cannot be null or empty, messageId:" + processinMessage.Message.Id);
             }
 
-            var mailbox = _mailboxDict.GetOrAdd(businessKey, x =>
-            {
-                var newMailBox = _mailboxProvider.CreateMailbox(x, _subscriber, _messageHandlerProvider, _continueWhenHandleFail, _retryIntervalSeconds, _batchSize);
-                return newMailBox;
-            });
+            var mailbox = _mailboxDict.GetOrAdd(
+                businessKey,
+                x => _mailboxProvider.CreateMailbox(x, _subscriber, _messageHandlerProvider, _continueWhenHandleFail, _retryIntervalSeconds, _batchSize)
+            );
 
             try
             {
