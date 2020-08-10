@@ -45,7 +45,7 @@ namespace Larva.MessageProcess.RabbitMQ.Tests
             Thread.Sleep(1000);
             eventBus.Shutdown();
 
-            Thread.Sleep(2000);
+            Thread.Sleep(5000);
             consumer1.Shutdown();
             consumer2.Shutdown();
         }
