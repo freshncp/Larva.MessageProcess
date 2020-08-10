@@ -119,18 +119,22 @@ namespace Larva.MessageProcess.Processing
             {
                 _cleanInactiveMailboxTimer.Change(Timeout.Infinite, Timeout.Infinite);
             }
+            foreach (var mailbox in _mailboxDict.Values)
+            {
+                mailbox.Stop();
+            }
             while (true)
             {
-                var allMailBoxFree = true;
-                foreach (var mailBox in _mailboxDict.Values)
+                var allMailboxFree = true;
+                foreach (var mailbox in _mailboxDict.Values)
                 {
-                    if (!mailBox.IsFree)
+                    if (!mailbox.IsFree)
                     {
-                        allMailBoxFree = false;
+                        allMailboxFree = false;
                         break;
                     }
                 }
-                if (allMailBoxFree)
+                if (allMailboxFree)
                 {
                     break;
                 }

@@ -1,6 +1,5 @@
 ﻿using Larva.MessageProcess.Handling;
 using Larva.MessageProcess.Messaging;
-using Larva.MessageProcess.Processing;
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
@@ -26,6 +25,7 @@ namespace Larva.MessageProcess.Processing.Mailboxes
         private readonly int _batchSize;
         private volatile int _isRemoved;
         private volatile int _isRunning;
+        private volatile int _disposing;
         private long _nextSequence;
         private long _consumingSequence;
         private volatile int _isHandlingProblemMessage;
@@ -114,7 +114,7 @@ namespace Larva.MessageProcess.Processing.Mailboxes
         /// <summary>
         /// 是否空闲，作为清理的依据之一
         /// </summary>
-        public bool IsFree => !IsRunning && UnhandledCount == 0 && UnhandledProblemCount == 0;
+        public bool IsFree => !IsRunning && UnhandledCount == 0 && (_disposing == 0 ? UnhandledProblemCount == 0 : _isHandlingProblemMessage == 0);
 
         /// <summary>
         /// 入队
@@ -134,6 +134,7 @@ namespace Larva.MessageProcess.Processing.Mailboxes
             {
                 throw new InvalidOperationException($"Message's business key \"{processingMessage.Message.BusinessKey}\" is not equal with mailbox's, businessKey: {BusinessKey}, subscriber: {Subscriber}, messageId: {processingMessage.Message.Id}, messageType: {processingMessage.Message.GetMessageTypeName()}, timestamp: {processingMessage.Message.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")}.");
             }
+            if (_disposing == 1) return;
             lock (_lockObj)
             {
                 processingMessage.Sequence = _nextSequence;
@@ -186,6 +187,14 @@ namespace Larva.MessageProcess.Processing.Mailboxes
         public void MarkAsRemoved()
         {
             Interlocked.Exchange(ref _isRemoved, 1);
+        }
+
+        /// <summary>
+        /// 停止
+        /// </summary>
+        public void Stop()
+        {
+            Interlocked.CompareExchange(ref _disposing, 1, 0);
         }
 
         private void TryRun()
@@ -258,21 +267,20 @@ namespace Larva.MessageProcess.Processing.Mailboxes
 
         private void ProcessProblemMessage()
         {
+            if (_disposing == 1) return;
             Task.Delay(Math.Min(10, _retryIntervalSeconds) * 1000).ContinueWith(async (lastTask, state) =>
             {
+                if (_disposing == 1) return;
                 if (Interlocked.CompareExchange(ref _isHandlingProblemMessage, 1, 0) == 0)
                 {
                     try
                     {
                         if (_isRunning == 1)
                         {
-                            // 暂停3秒，等待 ProcessMessage 完成，此处为提高处理问题消息的抢占概率
+                            // 暂停1秒，等待 ProcessMessage 完成，此处为提高处理问题消息的抢占概率
                             await Task.Delay(1000);
                         }
-                        if (_isRunning == 1)
-                        {
-                            return;
-                        }
+                        if (_isRunning == 1) return;
                         if (_continueWhenHandleFail)
                         {
                             foreach (var sequence in _problemProcessingMessages2.Keys.OrderBy(o => o).ToArray())

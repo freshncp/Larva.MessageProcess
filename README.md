@@ -156,10 +156,11 @@ public class CommandConsumer
 
 ## 发布历史
 
-### 待发布
+### 1.2.1 （更新日期：2020/8/10）
 
 ```plain
-1）代码重构，更好支持基于接口的依赖注入，目前支持 IProcessingMessageMailboxProvider、IProcessingMessageHandler。
+1）代码重构，更好支持基于接口的依赖注入，目前支持 IProcessingMessageMailboxProvider、IProcessingMessageHandler；
+2）修复存在问题消息时，停止DefaultMessageProcessor陷入死循环的bug。
 ```
 
 ### 1.2.0 （更新日期：2020/8/9）

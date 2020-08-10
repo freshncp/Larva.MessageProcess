@@ -84,5 +84,10 @@ namespace Larva.MessageProcess.Processing.Mailboxes
         /// 标记为已移除
         /// </summary>
         void MarkAsRemoved();
+
+        /// <summary>
+        /// 停止
+        /// </summary>
+        void Stop();
     }
 }
