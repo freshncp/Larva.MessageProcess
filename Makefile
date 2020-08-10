@@ -7,7 +7,7 @@ test-mq:
 	dotnet test src/Larva.MessageProcess.RabbitMQ.Tests
 
 publish: pack
-	dotnet nuget push `pwd`/packages/Larva.MessageProcess.1.2.0.nupkg --source "github"
+	dotnet nuget push `pwd`/packages/Larva.MessageProcess.1.2.1.nupkg --source "github"
 
 pack: build
 	mkdir -p `pwd`/packages
