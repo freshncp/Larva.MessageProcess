@@ -21,7 +21,9 @@ namespace Larva.MessageProcess.Processing.Mailboxes
         private readonly IProcessingMessageHandler _processingMessageHandler;
         private readonly bool _continueWhenHandleFail;
         private readonly int _retryIntervalSeconds;
+        private readonly bool _retryEnabled;
         private readonly int _batchSize;
+        private readonly CancellationTokenSource _ctsWhenDisposing;
         private volatile int _isRemoved;
         private volatile int _isRunning;
         private volatile int _disposing;
@@ -36,7 +38,7 @@ namespace Larva.MessageProcess.Processing.Mailboxes
         /// <param name="messageHandlerProvider">消息处理器提供者</param>
         /// <param name="processingMessageHandler">处理中消息处理器</param>
         /// <param name="continueWhenHandleFail">相同BusinessKey的消息处理失败后，是否继续推进</param>
-        /// <param name="retryIntervalSeconds">重试间隔秒数</param>
+        /// <param name="retryIntervalSeconds">重试间隔秒数（-1 表示不重试）</param>
         /// <param name="batchSize">批量处理大小</param>
         public DefaultProcessingMessageMailbox(
             string businessKey,
@@ -64,9 +66,19 @@ namespace Larva.MessageProcess.Processing.Mailboxes
             _messageHandlerProvider = messageHandlerProvider;
             _processingMessageHandler = processingMessageHandler;
             _continueWhenHandleFail = continueWhenHandleFail;
-            _retryIntervalSeconds = retryIntervalSeconds <= 0 ? 1 : retryIntervalSeconds;
+            if (retryIntervalSeconds != -1)
+            {
+                _retryIntervalSeconds = retryIntervalSeconds <= 0 ? 1 : retryIntervalSeconds;
+                _retryEnabled = true;
+            }
+            else
+            {
+                _retryIntervalSeconds = Int32.MaxValue;
+                _retryEnabled = false;
+            }
             _batchSize = batchSize <= 0 ? 1000 : batchSize;
-            if (_continueWhenHandleFail)
+            _ctsWhenDisposing = new CancellationTokenSource();
+            if (_continueWhenHandleFail && _retryEnabled)
             {
                 ProcessProblemMessage();
             }
@@ -123,6 +135,7 @@ namespace Larva.MessageProcess.Processing.Mailboxes
         /// <param name="processingMessage"></param>
         public void Enqueue(ProcessingMessage processingMessage)
         {
+            if (_disposing == 1) return;
             if (processingMessage == null)
             {
                 throw new ArgumentNullException(nameof(processingMessage));
@@ -135,7 +148,6 @@ namespace Larva.MessageProcess.Processing.Mailboxes
             {
                 throw new InvalidOperationException($"Message's business key \"{processingMessage.Message.BusinessKey}\" is not equal with mailbox's, businessKey: {BusinessKey}, subscriber: {Subscriber}, messageId: {processingMessage.Message.Id}, messageType: {processingMessage.Message.GetMessageTypeName()}, timestamp: {processingMessage.Message.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")}.");
             }
-            if (_disposing == 1) return;
             lock (_lockObj)
             {
                 processingMessage.Sequence = _nextSequence;
@@ -174,7 +186,10 @@ namespace Larva.MessageProcess.Processing.Mailboxes
         /// </summary>
         public void Stop()
         {
-            Interlocked.Exchange(ref _disposing, 1);
+            if (Interlocked.CompareExchange(ref _disposing, 1, 0) == 0)
+            {
+                _ctsWhenDisposing.Cancel();
+            }
         }
 
         private void TryRun()
@@ -206,6 +221,7 @@ namespace Larva.MessageProcess.Processing.Mailboxes
                 var scannedCount = 0;
                 while (UnhandledCount > 0 && scannedCount < _batchSize)
                 {
+                    if (_disposing == 1) break;
                     var processingMessage = GetProcessingMessage(_consumingSequence);
                     if (processingMessage != null)
                     {
@@ -219,11 +235,14 @@ namespace Larva.MessageProcess.Processing.Mailboxes
                         {
                             _processingMessageDict.TryRemove(processingMessage.Sequence, out ProcessingMessage _);
                             Interlocked.Increment(ref _consumingSequence);
-                            _problemProcessingMessages.TryAdd(processingMessage.Sequence, new ProcessingMessageWithCreatedTime(processingMessage));
+                            if (_retryEnabled)
+                            {
+                                _problemProcessingMessages.TryAdd(processingMessage.Sequence, new ProcessingMessageWithCreatedTime(processingMessage));
+                            }
                         }
                         else
                         {
-                            await Task.Delay(_retryIntervalSeconds);
+                            await Task.Delay(_retryIntervalSeconds, _ctsWhenDisposing.Token);
                         }
                     }
                     else
@@ -232,65 +251,70 @@ namespace Larva.MessageProcess.Processing.Mailboxes
                     }
                 }
             }
+            catch (TaskCanceledException) { }
             catch (Exception ex)
             {
-                _logger.Error($"{GetType().Name} run has unknown exception, businessKey: {BusinessKey}, subscriber: {Subscriber}", ex);
+                _logger.Error($"{GetType().Name} run has unknown exception: {ex.Message}, businessKey: {BusinessKey}, subscriber: {Subscriber}", ex);
             }
         }
 
         private void ProcessProblemMessage()
         {
             if (_disposing == 1) return;
-            Task.Delay(Math.Min(60, _retryIntervalSeconds) * 1000).ContinueWith(async (lastTask, state) =>
+            try
             {
-                if (_disposing == 1) return;
-
-                if (UnhandledProblemCount > 0)
+                Task.Delay(Math.Min(60, _retryIntervalSeconds) * 1000, _ctsWhenDisposing.Token).ContinueWith(async (lastTask, state) =>
                 {
-                    if (Interlocked.CompareExchange(ref _isRunning, 1, 0) == 0)
+                    if (_disposing == 1) return;
+
+                    if (UnhandledProblemCount > 0)
                     {
-                        try
+                        if (Interlocked.CompareExchange(ref _isRunning, 1, 0) == 0)
                         {
-                            foreach (var sequence in _problemProcessingMessages.Keys.OrderBy(o => o).ToArray())
+                            try
                             {
-                                var processingMessagePair = _problemProcessingMessages[sequence];
-                                if (!processingMessagePair.CanRetry(_retryIntervalSeconds))
+                                foreach (var sequence in _problemProcessingMessages.Keys.OrderBy(o => o).ToArray())
                                 {
-                                    continue;
-                                }
-                                var processingMessage = processingMessagePair.Message;
-                                var message = processingMessage.Message;
-                                var messageTypeName = message.GetMessageTypeName();
-                                var processSuccess = await _processingMessageHandler.HandleAsync(Subscriber, processingMessage, _messageHandlerProvider).ConfigureAwait(false);
-                                if (processSuccess)
-                                {
-                                    _problemProcessingMessages.TryRemove(sequence, out ProcessingMessageWithCreatedTime _);
-                                    _logger.Info($"Last failed message retry success, businessKey: {BusinessKey}, subscriber: {Subscriber}, messageId: {message.Id}, messageType: {messageTypeName}");
-                                }
-                                else
-                                {
-                                    processingMessagePair.ResetCreatedTime();
+                                    var processingMessagePair = _problemProcessingMessages[sequence];
+                                    if (!processingMessagePair.CanRetry(_retryIntervalSeconds))
+                                    {
+                                        continue;
+                                    }
+                                    var processingMessage = processingMessagePair.Message;
+                                    var message = processingMessage.Message;
+                                    var messageTypeName = message.GetMessageTypeName();
+                                    var processSuccess = await _processingMessageHandler.HandleAsync(Subscriber, processingMessage, _messageHandlerProvider).ConfigureAwait(false);
+                                    if (processSuccess)
+                                    {
+                                        _problemProcessingMessages.TryRemove(sequence, out ProcessingMessageWithCreatedTime _);
+                                        _logger.Info($"Last failed message retry success, businessKey: {BusinessKey}, subscriber: {Subscriber}, messageId: {message.Id}, messageType: {messageTypeName}");
+                                    }
+                                    else
+                                    {
+                                        processingMessagePair.ResetCreatedTime();
+                                    }
                                 }
                             }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.Error($"{GetType().Name} run has unknown exception, businessKey: {BusinessKey}, subscriber: {Subscriber}", ex);
-                        }
-
-                        // 再次运行
-                        lock (_lockObj)
-                        {
-                            Interlocked.Exchange(ref _isRunning, 0);
-                            if (UnhandledCount > 0 && _disposing == 0)
+                            catch (Exception ex)
                             {
-                                TryRun();
+                                _logger.Error($"{GetType().Name} run has unknown exception, businessKey: {BusinessKey}, subscriber: {Subscriber}", ex);
+                            }
+
+                            // 再次运行
+                            lock (_lockObj)
+                            {
+                                Interlocked.Exchange(ref _isRunning, 0);
+                                if (UnhandledCount > 0 && _disposing == 0)
+                                {
+                                    TryRun();
+                                }
                             }
                         }
                     }
-                }
-                ProcessProblemMessage();
-            }, this);
+                    ProcessProblemMessage();
+                }, this);
+            }
+            catch (TaskCanceledException) { }
         }
 
         private ProcessingMessage GetProcessingMessage(long sequence)

@@ -156,6 +156,13 @@ public class CommandConsumer
 
 ## 发布历史
 
+### 1.2.6 （更新日期：2020/8/13）
+
+```plain
+1）retryIntervalSeconds 如果设置为-1，表示不重试；
+2）Mailbox 执行Stop后，对于Task.Delay这类异步处理时间长的，传入CancellationToken以尽快停止。
+```
+
 ### 1.2.5 （更新日期：2020/8/13）
 
 ```plain
