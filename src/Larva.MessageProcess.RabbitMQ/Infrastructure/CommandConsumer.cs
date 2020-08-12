@@ -25,14 +25,14 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
             _logger = LoggerManager.GetLogger(typeof(CommandConsumer));
         }
 
-        public void Initialize(ConsumerSettings consumerSettings, string topic, int queueCount, int retryIntervalSeconds, IInterceptor[] interceptors, params Assembly[] assemblies)
+        public void Initialize(ConsumerSettings consumerSettings, string topic, int queueCount, bool continueWhenHandleFail, int retryIntervalSeconds, IInterceptor[] interceptors, params Assembly[] assemblies)
         {
             _consumer = new Consumer(consumerSettings);
             _consumer.Subscribe(topic, queueCount);
 
             _commandHandlerProvider = new CommandHandlerProvider();
             _commandHandlerProvider.Initialize(interceptors, assemblies);
-            _commandProcessor = new DefaultMessageProcessor(string.Empty, _commandHandlerProvider, _mailboxProvider, true, retryIntervalSeconds);
+            _commandProcessor = new DefaultMessageProcessor(string.Empty, _commandHandlerProvider, _mailboxProvider, continueWhenHandleFail, retryIntervalSeconds);
         }
 
         public void Start()
@@ -67,8 +67,8 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
 
         public void Shutdown()
         {
-            _consumer.Shutdown();
             _commandProcessor.Stop();
+            _consumer.Shutdown();
         }
 
         private class CommandExecutingContext : IMessageExecutingContext

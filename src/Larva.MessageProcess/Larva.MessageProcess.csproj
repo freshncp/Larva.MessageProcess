@@ -11,7 +11,7 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <PackageId>Larva.MessageProcess</PackageId>
     <Title>Larva.MessageProcess</Title>
-    <Version>1.2.1</Version>
+    <Version>1.2.5</Version>
     <PackageTags>parallel serial message mq message-process concurrent</PackageTags>
     <Description>Message processing framework. Parallel when different business key, serial when the same one.</Description>
     <PackageIcon>_content\package.png</PackageIcon>

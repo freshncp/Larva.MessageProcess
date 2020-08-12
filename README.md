@@ -156,6 +156,34 @@ public class CommandConsumer
 
 ## 发布历史
 
+### 1.2.5 （更新日期：2020/8/13）
+
+```plain
+1）修复Mailbox处理消息时，如果continueWhenHandleFail=true，当发生错误后，MessageProcessor将无法停止的bug；
+2）简化处理问题消息的逻辑。
+```
+
+### 1.2.4 （更新日期：2020/8/12）
+
+```plain
+1）修复Mailbox处理消息的bug。
+```
+
+### 1.2.3 （更新日期：2020/8/12）
+
+```plain
+1）ProcessingMessage不再处理Mailbox中移除消息的操作，由Mailbox自行完成，在发生消费进度往下移动时进行；
+2）移除了无用的代码。
+```
+
+### 1.2.2 （更新日期：2020/8/12）
+
+```plain
+1）修复不存在问题消息，当Mailbox触发Inactive后，mailbox从MessageProcessor中移除，但本身未被停止，导致一直占用内存和cpu的bug；
+2）mailboxTimeoutSeconds 由默认1天，改为4小时；
+3）优化处理问题消息、处理消息的抢占问题。
+```
+
 ### 1.2.1 （更新日期：2020/8/10）
 
 ```plain

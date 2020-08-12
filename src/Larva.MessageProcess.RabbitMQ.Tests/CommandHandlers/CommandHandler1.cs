@@ -14,7 +14,11 @@ namespace Larva.MessageProcess.RabbitMQ.CommandHandlers
         private volatile int _globalSequence;
         public async Task HandleAsync(Command1 message, IMessageContext ctx)
         {
-            await Task.Delay(10);
+            await Task.Delay(20);
+            if (DateTime.Now.Millisecond % 10 == 0)
+            {
+                throw new ApplicationException("Random exception occurred.");
+            }
             var globalSequence = Interlocked.Increment(ref _globalSequence);
             ctx.SetResult($"CommandHandler1 sequence={globalSequence}");
             Console.WriteLine($"{message.Id} CommandHandler1 handle Command1, replyAddress={message.GetExtraData("ReplyAddress")}");

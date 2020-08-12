@@ -4,6 +4,7 @@ using Larva.MessageProcess.RabbitMQ.Tests.DomainEvents;
 using RabbitMQTopic;
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Larva.MessageProcess.RabbitMQ.Tests
@@ -11,14 +12,14 @@ namespace Larva.MessageProcess.RabbitMQ.Tests
     public class DomainEventTests
     {
         [Fact]
-        public void Test1()
+        public async Task Test1()
         {
             //Larva.MessageProcess.LoggerManager.SetLoggerProvider(new Log4NetLoggerProvider());
             var consumer1 = new EventConsumer();
             consumer1.Initialize(new ConsumerSettings
             {
                 AmqpUri = new Uri("amqp://demo:123456@localhost/test")
-            }, "MessageProcess_EventTopic", 4, 5, null, typeof(DomainEventTests).Assembly);
+            }, "MessageProcess_EventTopic", 4, false, 1, null, typeof(DomainEventTests).Assembly);
             consumer1.Start();
 
             var consumer2 = new EventConsumer();
@@ -26,7 +27,7 @@ namespace Larva.MessageProcess.RabbitMQ.Tests
             {
                 AmqpUri = new Uri("amqp://demo:123456@localhost/test"),
                 GroupName = "Subscriber2"
-            }, "MessageProcess_EventTopic", 4, 5, null, typeof(DomainEventTests).Assembly);
+            }, "MessageProcess_EventTopic", 4, true, 1, null, typeof(DomainEventTests).Assembly);
             consumer2.Start();
 
             var eventBus = new EventBus();
@@ -35,17 +36,17 @@ namespace Larva.MessageProcess.RabbitMQ.Tests
                 AmqpUri = new Uri("amqp://demo:123456@localhost/test")
             }, "MessageProcess_EventTopic");
             eventBus.Start();
-            for (var i = 1; i <= 10; i++)
+            for (var i = 1; i <= 5; i++)
             {
-                for (var j = 1; j <= 10; j++)
+                for (var j = 1; j <= 5; j++)
                 {
-                    eventBus.PublishAsync(new DomainEvent1($"Test{i}")).Wait();
+                    await eventBus.PublishAsync(new DomainEvent1($"Test{i}"));
                 }
             }
             Thread.Sleep(1000);
             eventBus.Shutdown();
 
-            Thread.Sleep(5000);
+            Thread.Sleep(10000);
             consumer1.Shutdown();
             consumer2.Shutdown();
         }

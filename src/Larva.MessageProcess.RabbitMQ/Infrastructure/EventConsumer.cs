@@ -28,7 +28,7 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
             _logger = LoggerManager.GetLogger(typeof(EventConsumer));
         }
 
-        public void Initialize(ConsumerSettings consumerSettings, string topic, int queueCount, int retryIntervalSeconds, IInterceptor[] interceptors, params Assembly[] assemblies)
+        public void Initialize(ConsumerSettings consumerSettings, string topic, int queueCount, bool continueWhenHandleFail, int retryIntervalSeconds, IInterceptor[] interceptors, params Assembly[] assemblies)
         {
             _consumer = new Consumer(consumerSettings);
             _consumer.Subscribe(topic, queueCount);
@@ -36,7 +36,7 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
 
             _eventHandlerProvider = new EventHandlerProvider();
             _eventHandlerProvider.Initialize(interceptors, assemblies);
-            _eventStreamProcessor = new DefaultMessageProcessor(_subscriber, _eventHandlerProvider, _mailboxProvider, false, retryIntervalSeconds);
+            _eventStreamProcessor = new DefaultMessageProcessor(_subscriber, _eventHandlerProvider, _mailboxProvider, continueWhenHandleFail, retryIntervalSeconds);
         }
 
         public void Start()
@@ -78,8 +78,8 @@ namespace Larva.MessageProcess.RabbitMQ.Infrastructure
 
         public void Shutdown()
         {
-            _consumer.Shutdown();
             _eventStreamProcessor.Stop();
+            _consumer.Shutdown();
         }
 
         private class EventExecutingContext : IMessageExecutingContext

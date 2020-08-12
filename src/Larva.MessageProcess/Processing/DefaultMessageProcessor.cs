@@ -42,7 +42,7 @@ namespace Larva.MessageProcess.Processing
             IProcessingMessageMailboxProvider mailboxProvider,
             bool continueWhenHandleFail,
             int retryIntervalSeconds,
-            int mailboxTimeoutSeconds = 86400,
+            int mailboxTimeoutSeconds = 14400,
             int cleanInactiveMailboxIntervalSeconds = 10,
             int batchSize = 1000)
         {
@@ -66,7 +66,7 @@ namespace Larva.MessageProcess.Processing
         /// <param name="processinMessage">处理中消息</param>
         public void Process(ProcessingMessage processinMessage)
         {
-            if (_isRunning == 0) throw new InvalidOperationException($"{GetType().Name} is not running!");
+            if (_isRunning == 0) return;
             var businessKey = processinMessage.Message.BusinessKey;
             if (string.IsNullOrEmpty(businessKey))
             {
@@ -164,8 +164,11 @@ namespace Larva.MessageProcess.Processing
                     {
                         if (mailbox.IsInactive(_mailboxTimeoutSeconds))
                         {
+                            mailbox.Stop();
+                            mailbox.MarkAsRemoved();
                             if (_mailboxDict.TryRemove(pair.Key, out IProcessingMessageMailbox removed))
                             {
+                                removed.Stop();
                                 removed.MarkAsRemoved();
                                 _logger.Info($"Removed inactive message mailbox, businessKey: {pair.Key}");
                             }

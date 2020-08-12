@@ -1,5 +1,4 @@
 ﻿using Larva.MessageProcess.Messaging;
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -10,8 +9,6 @@ namespace Larva.MessageProcess.Processing
     /// </summary>
     public sealed class ProcessingMessage
     {
-        private Func<ProcessingMessage, bool> _tryDequeueFunc;
-
         /// <summary>
         /// 处理中消息
         /// </summary>
@@ -46,25 +43,13 @@ namespace Larva.MessageProcess.Processing
         public long Sequence { get; set; }
 
         /// <summary>
-        /// 设置 TryDequeue 回调
-        /// </summary>
-        /// <param name="tryDequeueFunc">尝试消息出队函数</param>
-        public void SetTryDequeueCallback(Func<ProcessingMessage, bool> tryDequeueFunc)
-        {
-            _tryDequeueFunc = tryDequeueFunc;
-        }
-
-        /// <summary>
         /// 完成
         /// </summary>
         /// <param name="messageResult">消息结果</param>
         /// <returns></returns>
         public async Task CompleteAsync(MessageExecutingResult messageResult)
         {
-            if (_tryDequeueFunc(this))
-            {
-                await ExecutingContext.NotifyMessageExecutedAsync(messageResult);
-            }
+            await ExecutingContext.NotifyMessageExecutedAsync(messageResult);
         }
     }
 }

@@ -15,8 +15,8 @@ namespace Larva.MessageProcess.RabbitMQ.Tests.DomainEventHandlers
         private volatile int _globalSequence;
         public async Task HandleAsync(DomainEvent1 message, IMessageContext ctx)
         {
-            await Task.Delay(100);
-            if (DateTime.Now.Second % 3 == 0)
+            await Task.Delay(20);
+            if (DateTime.Now.Millisecond % 10 == 0)
             {
                 throw new ApplicationException("Random exception occurred.");
             }

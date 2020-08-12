@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading;
-using Larva.MessageProcess.Handling;
 
 namespace Larva.MessageProcess.Processing.Mailboxes
 {
@@ -59,19 +58,6 @@ namespace Larva.MessageProcess.Processing.Mailboxes
         /// </summary>
         /// <param name="message"></param>
         void Enqueue(ProcessingMessage message);
-
-        /// <summary>
-        /// 尝试出队
-        /// </summary>
-        /// <param name="message"></param>
-        /// <returns></returns>
-        bool TryDequeue(ProcessingMessage message);
-
-        /// <summary>
-        /// 重置消费序号
-        /// </summary>
-        /// <param name="consumingSequence"></param>
-        void ResetConsumingSequence(long consumingSequence);
 
         /// <summary>
         /// 是否未激活
