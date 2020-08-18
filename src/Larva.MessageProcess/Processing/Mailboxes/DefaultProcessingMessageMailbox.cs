@@ -242,7 +242,7 @@ namespace Larva.MessageProcess.Processing.Mailboxes
                         }
                         else
                         {
-                            await Task.Delay(_retryIntervalSeconds, _ctsWhenDisposing.Token);
+                            await Task.Delay(_retryIntervalSeconds * 1000, _ctsWhenDisposing.Token);
                         }
                     }
                     else
