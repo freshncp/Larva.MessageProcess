@@ -156,6 +156,12 @@ public class CommandConsumer
 
 ## 发布历史
 
+### 1.2.7 （更新日期：2020/8/19）
+
+```plain
+1）Mailbox 当传入参数continueWhenHandleFail=true时，消息重试时间间隔bug修复。
+```
+
 ### 1.2.6 （更新日期：2020/8/13）
 
 ```plain
