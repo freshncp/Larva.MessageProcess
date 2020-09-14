@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 
 namespace Larva.MessageProcess.Processing.Mailboxes
@@ -60,7 +60,7 @@ namespace Larva.MessageProcess.Processing.Mailboxes
         void Enqueue(ProcessingMessage message);
 
         /// <summary>
-        /// 是否未激活
+        /// 是否处于不活跃状态
         /// </summary>
         /// <param name="timeoutSeconds"></param>
         /// <returns></returns>

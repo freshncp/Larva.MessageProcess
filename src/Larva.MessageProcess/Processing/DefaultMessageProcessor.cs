@@ -1,5 +1,6 @@
 ﻿using Larva.MessageProcess.Handling;
 using Larva.MessageProcess.Processing.Mailboxes;
+using Larva.MessageProcess.Processing.Strategies;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -20,6 +21,8 @@ namespace Larva.MessageProcess.Processing
         private readonly IProcessingMessageMailboxProvider _mailboxProvider;
         private readonly bool _continueWhenHandleFail;
         private readonly int _retryIntervalSeconds;
+        private readonly IEliminationStrategy _mailboxEliminationStrategy;
+        private readonly ConcurrentDictionary<string, bool> _eliminationKeyDict;
         private readonly int _mailboxTimeoutSeconds;
         private readonly int _cleanInactiveMailboxIntervalSeconds;
         private readonly int _batchSize;
@@ -33,8 +36,9 @@ namespace Larva.MessageProcess.Processing
         /// <param name="mailboxProvider">Mailbox提供者</param>
         /// <param name="continueWhenHandleFail">相同BusinessKey的消息处理失败后，是否继续推进</param>
         /// <param name="retryIntervalSeconds">重试间隔秒数（-1 表示不重试）</param>
+        /// <param name="mailboxEliminationStrategy">mailbox淘汰策略，默认为LFU</param>
         /// <param name="mailboxTimeoutSeconds">mailbox超时秒数</param>
-        /// <param name="cleanInactiveMailboxIntervalSeconds">清理未激活邮箱间隔秒数</param>
+        /// <param name="cleanInactiveMailboxIntervalSeconds">清理不活跃邮箱间隔秒数</param>
         /// <param name="batchSize">批量处理大小</param>
         public DefaultMessageProcessor(
             string subscriber,
@@ -42,10 +46,19 @@ namespace Larva.MessageProcess.Processing
             IProcessingMessageMailboxProvider mailboxProvider,
             bool continueWhenHandleFail,
             int retryIntervalSeconds,
-            int mailboxTimeoutSeconds = 14400,
+            IEliminationStrategy mailboxEliminationStrategy = null,
+            int mailboxTimeoutSeconds = 600,
             int cleanInactiveMailboxIntervalSeconds = 10,
             int batchSize = 1000)
         {
+            if (messageHandlerProvider == null)
+            {
+                throw new ArgumentNullException(nameof(messageHandlerProvider));
+            }
+            if (mailboxProvider == null)
+            {
+                throw new ArgumentNullException(nameof(mailboxProvider));
+            }
             _mailboxDict = new ConcurrentDictionary<string, IProcessingMessageMailbox>();
             _logger = LoggerManager.GetLogger(GetType());
             _cleanInactiveMailboxTimer = new Timer(CleanInactiveMailbox);
@@ -53,11 +66,21 @@ namespace Larva.MessageProcess.Processing
             _subscriber = subscriber;
             _messageHandlerProvider = messageHandlerProvider;
             _mailboxProvider = mailboxProvider;
+            _mailboxEliminationStrategy = mailboxEliminationStrategy ?? new LfuStrategy();
+            _eliminationKeyDict = new ConcurrentDictionary<string, bool>();
             _continueWhenHandleFail = continueWhenHandleFail;
             _retryIntervalSeconds = retryIntervalSeconds;
             _mailboxTimeoutSeconds = mailboxTimeoutSeconds;
             _cleanInactiveMailboxIntervalSeconds = cleanInactiveMailboxIntervalSeconds;
             _batchSize = batchSize;
+
+            _mailboxEliminationStrategy.OnKnockedOut += (sender, e) =>
+            {
+                foreach (var key in e.Keys)
+                {
+                    _eliminationKeyDict.TryAdd(key, false);
+                }
+            };
         }
 
         /// <summary>
@@ -73,6 +96,7 @@ namespace Larva.MessageProcess.Processing
                 throw new ArgumentException("businessKey of message cannot be null or empty, messageId:" + processinMessage.Message.Id);
             }
 
+            _mailboxEliminationStrategy.AddKey(businessKey);
             var mailbox = _mailboxDict.GetOrAdd(
                 businessKey,
                 x => _mailboxProvider.CreateMailbox(x, _subscriber, _messageHandlerProvider, _continueWhenHandleFail, _retryIntervalSeconds, _batchSize)
@@ -106,6 +130,7 @@ namespace Larva.MessageProcess.Processing
             if (Interlocked.CompareExchange(ref _isRunning, 1, 0) == 0)
             {
                 _cleanInactiveMailboxTimer.Change(_cleanInactiveMailboxIntervalSeconds * 1000, _cleanInactiveMailboxIntervalSeconds * 1000);
+                _mailboxEliminationStrategy.Start();
             }
         }
 
@@ -117,6 +142,7 @@ namespace Larva.MessageProcess.Processing
             if (Interlocked.CompareExchange(ref _isRunning, 0, 1) == 1)
             {
                 _cleanInactiveMailboxTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                _mailboxEliminationStrategy.Stop();
             }
             foreach (var mailbox in _mailboxDict.Values)
             {
@@ -139,6 +165,7 @@ namespace Larva.MessageProcess.Processing
                 }
                 Thread.Sleep(1);
             }
+            _eliminationKeyDict.Clear();
         }
 
         private void CleanInactiveMailbox(object state)
@@ -147,11 +174,12 @@ namespace Larva.MessageProcess.Processing
 
             foreach (var pair in _mailboxDict)
             {
-                if (pair.Value.IsInactive(_mailboxTimeoutSeconds))
+                if (_eliminationKeyDict.ContainsKey(pair.Key) || pair.Value.IsInactive(_mailboxTimeoutSeconds))
                 {
                     inactiveList.Add(pair);
                 }
             }
+            _eliminationKeyDict.Clear();
 
             foreach (var pair in inactiveList)
             {
@@ -162,7 +190,7 @@ namespace Larva.MessageProcess.Processing
                     mailbox.Locker.TryEnter(ref lockToken);
                     if (lockToken)
                     {
-                        if (mailbox.IsInactive(_mailboxTimeoutSeconds))
+                        if (mailbox.IsFree)
                         {
                             mailbox.Stop();
                             mailbox.MarkAsRemoved();
@@ -173,7 +201,15 @@ namespace Larva.MessageProcess.Processing
                                 _logger.Info($"Removed inactive message mailbox, businessKey: {pair.Key}");
                             }
                         }
+                        else
+                        {
+                            _eliminationKeyDict.TryAdd(mailbox.BusinessKey, false);
+                        }
                     }
+                }
+                catch
+                {
+                    _eliminationKeyDict.TryAdd(mailbox.BusinessKey, false);
                 }
                 finally
                 {

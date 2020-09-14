@@ -4,27 +4,27 @@
 
 消息处理框架。不同业务键并行处理，相同业务键串行处理，思路来源于 [ENode](http://github.com/tangxuehua/enode)。
 
-- 消息的消息类型名，默认为`typeof(TMessage).FullName`，可通过标记`[MessageType("<name>")]` 自定义设置
+## 功能列表
 
-- 支持多个订阅者，通过标记`[MessageSubscriber("<subscriber>")`到消息处理器来实现，订阅者之间并行消费
+- 支持自定义消息类型名
 
-- 同一个消息、同一个消费者，支持多个消息处理器，消息处理器之间串行处理；对于有执行顺序要求的，可通过标记`[HandlePriority(1)]`来实现，数字越小，优先级越高
+- 支持多个订阅者，订阅者之间并行消费
 
-- 消息是和消息处理器对应关系，如1:1、1:N，通过自定义实现 `MessageHandlerProviderBase` 来约束
+- 支持多个消息处理器，消息处理器之间串行处理，可设置优先级
 
 - 支持消息执行结果返回
 
-- 消息可以没有消息处理器，消息执行结果为 `HandlerNotFound`，使用者可以自行决定是否ACK
+- 消息可以没有消息处理器，使用者可以自行决定是否ACK
 
-- 支持消息组概念，即将一组BusinessKey相同的消息打包成一个消息 `MessageGroup`，进行发送和消费
+- 支持消息组概念，即将一组相同业务键的消息打包成一个消息组进行发送和消费
 
-- 相同 `BusinessKey` 的消息，如果处理失败，默认此类消息不会继续处理，必须前面的消息处理完才可以继续，可通过初始化 `IMessageProcessor` 时设置 `continueWhenHandleFail` 来决定出错后是否继续消费
+- 支持设置消息处理失败时是否继续消费相同业务键的消息（默认此类消息不会继续处理）
 
-- `IMessageHandler` 处理消息失败后，会在`IProcessingMessageMailbox`中定时重试，可通过初始化 `IMessageProcessor` 时设置 `retryIntervalSeconds`来设置间隔时间，如果相同`BusinessKey`有消息处理，则会等下一周期处理
+- 支持消息处理失败后定时重试
 
-- `IMessageHandler` 支持拦截器，需实现接口 `IInterceptor` 或直接继承 `StandardInterceptor`
+- 支持消息处理器的拦截
 
-- `IMessageHandler` 支持幂等。通过 `StandardInterceptor` 的 `PreProceed`，使用实现了 `IAutoIdempotentStore` 的幂等存储，来判断是否已处理过，已处理过的抛出 `DuplicateMessageHandlingException` 异常，在 `PostProceed` 中保存已处理
+- 内置用于幂等的消息处理器拦截器，幂等存储需自定义实现
 
 ## 安装
 
@@ -155,6 +155,13 @@ public class CommandConsumer
 ```
 
 ## 发布历史
+
+### 1.2.8 （更新日期：2020/9/14）
+
+```plain
+1）DefaultMessageProcessor 增加Mailbox的淘汰策略，默认为LFU策略，目的是降低Mailbox的内存消耗；
+2）内置 AutoIdempotentInterceptor 拦截器，并调整 IAutoIdempotentStore 接口，不再区分 multipleMessageHandler。
+```
 
 ### 1.2.7 （更新日期：2020/8/19）
 

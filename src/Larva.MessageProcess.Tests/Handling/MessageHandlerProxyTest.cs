@@ -62,7 +62,7 @@ namespace Larva.MessageProcess.Tests.Handling
         {
             var proxy = new MessageHandlerProxy<MessageA>(new MessageHandler1(),
                 new IInterceptor[] {
-                    new AutoIdempotentInterceptor()
+                    new AutoIdempotentInterceptor(new InMemoryAutoIdempotentStore())
                 });
             var message = new MessageA { Id = Guid.NewGuid().ToString(), BusinessKey = "Key1" };
             var ctx = new MockupMessageContext();
@@ -104,35 +104,6 @@ namespace Larva.MessageProcess.Tests.Handling
             public void Intercept(IInvocation invocation)
             {
                 invocation.Proceed();
-            }
-        }
-
-        public class AutoIdempotentInterceptor : StandardInterceptor
-        {
-            private IAutoIdempotentStore _store = new MemoryAutoIdempotentStore();
-
-            protected override void PreProceed(IInvocation invocation)
-            {
-                if (invocation.Arguments.Length == 2
-                    && typeof(IMessage).IsAssignableFrom(invocation.ArgumentTypes[0])
-                    && typeof(IMessageHandler<>).MakeGenericType(invocation.ArgumentTypes[0]).IsInstanceOfType(invocation.InvocationTarget))
-                {
-                    if (_store.Exists((IMessage)invocation.Arguments[0], invocation.InvocationTarget.GetType(), true))
-                    {
-                        throw new DuplicateMessageHandlingException((IMessage)invocation.Arguments[0], invocation.InvocationTarget.GetType());
-                    }
-                }
-            }
-
-            protected override void PostProceed(IInvocation invocation)
-            {
-                if (invocation.Arguments.Length == 2
-                      && typeof(IMessage).IsAssignableFrom(invocation.ArgumentTypes[0])
-                      && typeof(IMessageHandler<>).MakeGenericType(invocation.ArgumentTypes[0]).IsInstanceOfType(invocation.InvocationTarget))
-                {
-
-                    _store.Save((IMessage)invocation.Arguments[0], invocation.InvocationTarget.GetType(), true);
-                }
             }
         }
 

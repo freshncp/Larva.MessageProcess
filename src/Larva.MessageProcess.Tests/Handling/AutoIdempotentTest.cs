@@ -11,27 +11,16 @@ namespace Larva.MessageProcess.Tests.Handling
     public class AutoIdempotentTest
     {
         [Fact]
-        public void TestSaveWithNoMultiHandler()
+        public void TestSave()
         {
-            IAutoIdempotentStore store = new MemoryAutoIdempotentStore();
+            IAutoIdempotentStore store = new InMemoryAutoIdempotentStore();
             var message = new MessageA { Id = Guid.NewGuid().ToString(), BusinessKey = "Key1" };
             
-            Assert.False(store.Exists(message, typeof(MessageHandler1), false));
-            store.Save(message, typeof(MessageHandler1), false);
-            Assert.True(store.Exists(message, typeof(MessageHandler1), false));
-            Assert.True(store.Exists(message, typeof(MessageHandler2), false));
-        }
-
-        [Fact]
-        public void TestSaveWithMultiHandler()
-        {
-            IAutoIdempotentStore store = new MemoryAutoIdempotentStore();
-            var message = new MessageA { Id = Guid.NewGuid().ToString(), BusinessKey = "Key1" };
-            
-            Assert.False(store.Exists(message, typeof(MessageHandler1), true));
-            store.Save(message, typeof(MessageHandler1), true);
-            Assert.True(store.Exists(message, typeof(MessageHandler1), true));
-            Assert.False(store.Exists(message, typeof(MessageHandler2), true));
+            Assert.False(store.Exists(message, typeof(MessageHandler1)));
+            Assert.False(store.Exists(message, typeof(MessageHandler2)));
+            store.Save(message, typeof(MessageHandler1));
+            Assert.True(store.Exists(message, typeof(MessageHandler1)));
+            Assert.False(store.Exists(message, typeof(MessageHandler2)));
         }
 
         public class MessageA : IMessage

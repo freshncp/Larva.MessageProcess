@@ -164,7 +164,7 @@ namespace Larva.MessageProcess.Processing.Mailboxes
         }
 
         /// <summary>
-        /// 是否未激活
+        /// 是否处于不活跃状态
         /// </summary>
         /// <param name="timeoutSeconds"></param>
         /// <returns></returns>
